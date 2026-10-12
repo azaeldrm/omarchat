@@ -6,7 +6,7 @@
 source "$(dirname "$0")/../lib.sh"
 
 plugin=$(plugin_copy)
-for agent in claude pi codex; do
+for agent in claude pi codex opencode; do
   cat >"$plugin/backends/$agent" <<'EOF'
 #!/bin/bash
 # Stand-in backend driven by STUB_<AGENT>_CHECK (empty: usable; "silent": fails
@@ -33,16 +33,17 @@ export XDG_CACHE_HOME="$scratch/cache"
 export STUB_CLAUDE_MODELS=$'{"id":"c1","name":"Claude One"}\n{"id":"c2","name":"Claude Two"}'
 export STUB_PI_MODELS='{"id":"p/1","name":"Pi One","provider":"p"}'
 export STUB_CODEX_MODELS='{"id":"x1","name":"Codex One"}'
+export STUB_OPENCODE_MODELS='{"id":"o/1","name":"OpenCode One","provider":"o"}'
 model="$plugin/bin/omarchat-model"
 models="$plugin/bin/omarchat-models"
 tab=$'\t'
 
-# Codex is unusable unless a test says otherwise.
+# Codex and opencode are unusable unless a test says otherwise.
 reset() {
   rm -f "$OMARCHAT_MODEL_FILE"
   rm -rf "$XDG_CACHE_HOME"
   unset STUB_CLAUDE_CHECK STUB_PI_CHECK
-  export STUB_CODEX_CHECK="Not installed"
+  export STUB_CODEX_CHECK="Not installed" STUB_OPENCODE_CHECK="Not installed"
 }
 
 # Fallback when nothing has been chosen.
@@ -53,8 +54,10 @@ assert_eq "header label names model and agent" "Claude One · Claude Code" "$("$
 STUB_CLAUDE_CHECK="Not installed" assert_eq "first agent unusable: falls through to the next" \
   "pi${tab}p/1${tab}Pi One" "$(STUB_CLAUDE_CHECK="Not installed" "$model")"
 
-assert_eq "the last agent is the last fallback" "codex${tab}x1${tab}Codex One" \
+assert_eq "later agents are fallbacks too" "codex${tab}x1${tab}Codex One" \
   "$(STUB_CLAUDE_CHECK="Not installed" STUB_PI_CHECK="Not logged in" STUB_CODEX_CHECK="" "$model")"
+assert_eq "the last agent is the last fallback" "opencode${tab}o/1${tab}OpenCode One" \
+  "$(STUB_CLAUDE_CHECK="Not installed" STUB_PI_CHECK="Not logged in" STUB_OPENCODE_CHECK="" "$model")"
 
 export STUB_CLAUDE_CHECK="Not installed" STUB_PI_CHECK="Not logged in"
 assert_eq "no usable agent: reports none" "none${tab}${tab}" "$("$model")"
@@ -78,7 +81,7 @@ assert_eq "an unusable agent is listed with its reason and no models" '{"availab
   "$(jq -c '.agents[] | select(.id == "claude") | {available, reason, models: (.models | length)}' <<<"$listing")"
 assert_eq "a usable agent lists its models by name" '["Pi One"]' \
   "$(jq -c '[.agents[] | select(.id == "pi") | .models[].name]' <<<"$listing")"
-assert_eq "agents keep their display names and order" '["Claude Code","Pi","Codex"]' "$(jq -c '[.agents[].name]' <<<"$listing")"
+assert_eq "agents keep their display names and order" '["Claude Code","Pi","Codex","OpenCode"]' "$(jq -c '[.agents[].name]' <<<"$listing")"
 
 assert_eq "a usable agent with no models says so" '{"available":false,"reason":"No models found"}' \
   "$(STUB_PI_MODELS="" "$models" | jq -c '.agents[] | select(.id == "pi") | {available, reason}')"
@@ -97,6 +100,6 @@ jq '.["claude/c2"].at -= 8 * 86400' "$marks" >"$marks.tmp" && mv "$marks.tmp" "$
 assert_eq "a mark older than a week is ignored" "null" \
   "$("$models" --cached | jq -c '.agents[] | select(.id == "claude") | .models[] | select(.id == "c2") | .unavailable')"
 assert_eq "--cached without a cache builds one" "true" \
-  "$(rm -rf "$XDG_CACHE_HOME"; "$models" --cached | jq '.agents | length == 3')"
+  "$(rm -rf "$XDG_CACHE_HOME"; "$models" --cached | jq '.agents | length == 4')"
 
 finish

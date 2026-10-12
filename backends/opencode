@@ -1,0 +1,198 @@
+#!/bin/bash
+
+# Omarchat backend for opencode. See lib.sh for the interface.
+#
+# Speaks the Agent Client Protocol (JSON-RPC over stdio), opencode's
+# documented way to run inside another app: https://opencode.ai/docs/acp/ and
+# https://agentclientprotocol.com. One `opencode acp` process holds the
+# conversation as one session.
+#
+# Each session gets its own config instead of the user's: no plugins, MCP
+# servers, LSP, formatters, or instructions, and one agent, "omarchat", whose
+# every permission is denied except websearch (opencode's Exa search). The
+# other agents are disabled, so no mode can switch the lockdown off. opencode's
+# free (Zen) models refuse a changed toolset, so they aren't offered.
+
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+# shellcheck source=SCRIPTDIR/lib.sh
+source "$here/lib.sh"
+
+data_dir=${XDG_DATA_HOME:-$HOME/.local/share}/opencode
+auth_file=$data_dir/auth.json
+
+# The environment every opencode run here gets: Omarchat's config only (an
+# empty config home hides the user's, and project config is off), no external
+# plugins, and the search tool switched on. $1 is a scratch folder for the
+# config home, $2 the model, if any.
+opencode_env() {
+  mkdir -p "$1/config"
+  export XDG_CONFIG_HOME=$1/config
+  export OPENCODE_PURE=1 OPENCODE_ENABLE_EXA=1
+  export OPENCODE_DISABLE_PROJECT_CONFIG=1 OPENCODE_DISABLE_CLAUDE_CODE=1
+  export OPENCODE_DISABLE_AUTOUPDATE=1 OPENCODE_DISABLE_LSP_DOWNLOAD=1 OPENCODE_DISABLE_SHARE=1
+  OPENCODE_CONFIG_CONTENT=$(jq -nc --arg model "${2:-}" --arg prompt "${OMARCHAT_SYSTEM_PROMPT:-}" '
+    {permission: {"*": "deny", websearch: "allow"}} as $searchOnly
+    | {
+        autoupdate: false, share: "disabled", snapshot: false,
+        plugin: [], mcp: {}, lsp: false, formatter: false, instructions: [],
+        permission: $searchOnly.permission,
+        default_agent: "omarchat",
+        agent: {
+          build: {disable: true}, plan: {disable: true},
+          general: {disable: true}, explore: {disable: true},
+          omarchat: ({mode: "primary", description: "Omarchat", permission: $searchOnly.permission}
+            + if $prompt != "" then {prompt: $prompt} else {} end)
+        }
+      }
+    + if $model != "" then {model: $model} else {} end')
+  export OPENCODE_CONFIG_CONTENT
+}
+
+# The models this account can use, as opencode lists them for this config:
+# {"id", "name", "provider", "released"} per line.
+list_models() {
+  local bin scratch
+  bin=$(omarchat_agent_bin opencode)
+  scratch=$(mktemp -d)
+  # shellcheck disable=SC2064 # expand now: $scratch is local
+  trap "rm -rf '$scratch'" RETURN
+  opencode_env "$scratch"
+  # Each model is an "provider/model" line followed by its JSON; keep the JSON.
+  (cd /tmp && "$bin" models --verbose 2>/dev/null) | sed '/^[^{} ]/d' |
+    jq -c --argjson zen "$(jq 'has("opencode")' "$auth_file" 2>/dev/null || echo false)" '
+      select(.capabilities.toolcall != false and .status != "deprecated")
+      | select(.providerID != "opencode" or $zen)
+      | {id: "\(.providerID)/\(.id)", name: (.name // .id), provider: .providerID, released: (.release_date // "")}'
+}
+
+# rpc <id> <method> <params-json>
+rpc() {
+  jq -nc --argjson id "$1" --arg method "$2" --argjson params "$3" '{jsonrpc: "2.0", id: $id, method: $method, params: $params}'
+}
+
+# Read agent output until the response to request <id>; print it.
+await() {
+  local line
+  while IFS= read -r line <&4; do
+    if jq -e --argjson id "$1" '.id == $id and (has("result") or has("error"))' <<<"$line" >/dev/null 2>&1; then
+      echo "$line"
+      return 0
+    fi
+  done
+  return 1
+}
+
+case "${1:-}" in
+check)
+  if ! omarchat_agent_bin opencode >/dev/null; then
+    echo "Not installed"
+    exit 1
+  fi
+  # A provider login (`opencode auth login`) or a provider key in the
+  # environment. The free models alone don't count: they refuse Omarchat.
+  if ! jq -e 'del(.opencode) | length > 0' "$auth_file" >/dev/null 2>&1 &&
+    ! env | grep -q -E '^[A-Z0-9_]+_API_KEY='; then
+    echo "Not logged in"
+    exit 1
+  fi
+  ;;
+
+models)
+  list_models | jq -c '{id, name, provider}'
+  ;;
+
+default)
+  # The model opencode itself used last, when it's still offered; otherwise
+  # the newest one (the plainest variant of it: "Sol" before "Sol Fast").
+  models=$(list_models)
+  recent=$(jq -r '.recent[0] | select(.) | "\(.providerID)/\(.modelID)"' \
+    "${XDG_STATE_HOME:-$HOME/.local/state}/opencode/model.json" 2>/dev/null || true)
+  pick=$(jq -c --arg id "$recent" 'select(.id == $id) | {id, name}' <<<"$models" | head -1)
+  [[ -n $pick ]] || pick=$(jq -sc 'sort_by(.released, -(.name | length)) | last | select(.) | {id, name}' <<<"$models")
+  [[ -n $pick ]] && echo "$pick"
+  ;;
+
+paths)
+  # The login (refreshed in place) and opencode's model catalog. Not the rest
+  # of its data folder: sessions are kept in a database there, and Omarchat's
+  # stay in the sandbox's throwaway $HOME.
+  printf '%s\n' "$auth_file" "${XDG_CACHE_HOME:-$HOME/.cache}/opencode/models.json"
+  ;;
+
+encode)
+  # A typed message as session/prompt content. The text is only ever a text
+  # block; the backend fills in the request id and session.
+  jq --unbuffered -c '[{type: "text", text: .text}]'
+  ;;
+
+translate)
+  jq -n --unbuffered -c -f "$here/opencode.jq"
+  ;;
+
+session)
+  model=${2:?usage: opencode session <model>}
+  bin=$(omarchat_agent_bin opencode)
+  workdir=$(mktemp -d)
+  opencode_env "$workdir" "$model"
+  mkfifo "$workdir/in" "$workdir/out"
+  (cd /tmp && exec "$bin" acp) <"$workdir/in" >"$workdir/out" &
+  agent_pid=$!
+  exec 3>"$workdir/in" 4<"$workdir/out"
+  trap 'exec 3>&-; kill "$agent_pid" 2>/dev/null; rm -rf "$workdir"' EXIT
+
+  # No file system or terminal for the agent to borrow from the client.
+  rpc 0 initialize '{"protocolVersion":1,"clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false},"terminal":false},"clientInfo":{"name":"omarchat","title":"Omarchat","version":"0.1.0"}}' >&3
+  await 0 >/dev/null
+  rpc 1 session/new '{"cwd":"/tmp","mcpServers":[]}' >&3
+  started=$(await 1)
+  session=$(jq -r '.result.sessionId // empty' <<<"$started")
+  if [[ -z $session ]]; then
+    echo "opencode couldn't start a chat: $(jq -r '.error.message // "no session"' <<<"$started")" >&2
+    exit 1
+  fi
+  # opencode falls back to another model (a free one) for a model it doesn't
+  # know, rather than failing. Say so instead.
+  current=$(jq -r '.result.configOptions[]? | select(.id == "model") | .currentValue' <<<"$started")
+  if [[ $current != "$model" ]]; then
+    jq -nc --arg model "$model" '{type: "error", text: "\($model) is not available in opencode."}, {type: "done"}'
+    exit 0
+  fi
+
+  # Everything the agent says from here on: answer its requests (permissions
+  # are always rejected), and translate the rest into Omarchat events.
+  {
+    while IFS= read -r line; do
+      if jq -e 'has("id") and has("method")' <<<"$line" >/dev/null 2>&1; then
+        jq -c '
+          if .method == "session/request_permission" then
+            {jsonrpc: "2.0", id, result: {outcome: (
+              [.params.options[]? | select(.kind | startswith("reject"))][0]
+              | if . then {outcome: "selected", optionId} else {outcome: "cancelled"} end)}}
+          else {jsonrpc: "2.0", id, error: {code: -32601, message: "Omarchat does not support this request"}} end' <<<"$line" >&3
+      else
+        # OMARCHAT_OPENCODE_RECORD=<file> keeps the raw stream, for re-recording
+        # tests/fixtures/opencode-*.jsonl (scrub with tests/fixtures/scrub-opencode.jq).
+        [[ -n ${OMARCHAT_OPENCODE_RECORD:-} ]] && echo "$line" >>"$OMARCHAT_OPENCODE_RECORD"
+        echo "$line"
+      fi
+    done <&4
+  } | "$0" translate &
+  reader=$!
+
+  id=2
+  "$0" encode | while IFS= read -r prompt; do
+    rpc "$id" session/prompt "$(jq -nc --arg session "$session" --argjson prompt "$prompt" '{sessionId: $session, prompt: $prompt}')" >&3
+    id=$((id + 1))
+  done
+  # The card closed its end: stop the agent so the reader drains and ends.
+  kill "$agent_pid" 2>/dev/null || true
+  wait "$reader" 2>/dev/null || true
+  ;;
+
+*)
+  echo "usage: opencode check|models|default|paths|encode|translate|session <model>" >&2
+  exit 2
+  ;;
+esac

@@ -21,6 +21,10 @@ but it **cannot** touch your system: no files, no commands, no local network
     including local servers such as llama.cpp and Ollama.
   - [Codex](https://developers.openai.com/codex): `omarchy default agent codex`,
     then `codex login`. Settings lists the models your plan offers.
+  - [opencode](https://opencode.ai): `omarchy default agent opencode`, then
+    `opencode auth login` for a provider. Settings lists the models of every
+    provider you're logged in to. opencode's free (Zen) models aren't offered:
+    they refuse to run with tools switched off.
 - `bubblewrap`, for the sandbox: `omarchy pkg add bubblewrap`
 
 No agent yet? Open Omarchat anyway. It lists the agents it works with and why
@@ -82,9 +86,9 @@ install or log in to shows up without any setup.
 
 A few things to know about the lists:
 
-- **Pi lists its whole catalog** for every provider you're logged in to, and
-  some plans don't include every model. For example, a ChatGPT-based Codex
-  login refuses older models. When a model is refused like that, Omarchat greys
+- **Pi and opencode list their whole catalog** for every provider you're
+  logged in to, and some plans don't include every model. For example, a
+  ChatGPT-based Codex login refuses older models. When a model is refused like that, Omarchat greys
   it out in settings with the reason for a week, in case your plan changes.
 - **Local servers list the models they have loaded** when the list refreshes,
   so loading a different model on your server changes the list. The first
@@ -122,18 +126,23 @@ whichever agent answers:
   [Exa](https://exa.ai)'s hosted search. Codex keeps its web search, which runs
   on OpenAI's side, and has every other tool switched off: shell, command
   execution, apps, browsers, computer use, plugins, skills, MCP servers, hooks,
-  and image generation. None of these search tools takes a URL from your
+  and image generation. opencode runs as a single agent whose every permission
+  is denied except `websearch`, its own Exa search, with no plugins, MCP
+  servers, or project config, and its other agents disabled. None of these search tools takes a URL from your
   machine, so the model can't reach localhost or your network. Page-fetching
   tools are left out on purpose: they fetch from your machine, which would put
   localhost and LAN services in reach.
 - **The agent runs in a bubblewrap sandbox.** `/` is read-only, `/tmp` is a
   private tmpfs, and `$HOME` is empty: only Omarchat and the agent's own
   program come back, read-only, plus the agent's state, writable so your login
-  can refresh (`~/.claude` and `~/.claude.json`, `~/.pi/agent`, `~/.codex`).
+  can refresh (`~/.claude` and `~/.claude.json`, `~/.pi/agent`, `~/.codex`,
+  and opencode's `auth.json` and model catalog).
   Your documents, keys, and other configs aren't there to read, whatever tools
   an agent turns out to have. The sandbox dies with the card.
 - **Nothing is persisted.** Sessions run without saving transcripts
   (`--no-session-persistence`, `--no-session`, ephemeral Codex threads).
+  opencode always keeps sessions in a database, so it gets a fresh one in the
+  sandbox's empty `$HOME`, gone with the card.
 
 Codex keeps a few tools no setting removes: `view_image` (reads images from
 disk), `apply_patch` (edits files), code mode (`functions.exec`, scripts that
@@ -143,14 +152,14 @@ writes can't land on a read-only filesystem, a subagent asked to run a command
 created nothing in testing, and with no MCP servers configured there are no
 resources to list.
 
-Tested with all three agents by asking them to write a file, run a command,
+Tested with all four agents by asking them to write a file, run a command,
 read a local file, fetch `http://127.0.0.1` (directly and from a code-execution
 tool), have a subagent run a command, and with a raw Pi RPC `bash` command
 typed as the message. Nothing reached disk or the local test server, and the
 canary file never showed up in an answer.
 
 What you type and the answers go to the model's provider, and your search
-queries go to Exa when using Pi. Usage counts against your plans.
+queries go to Exa when using Pi or opencode. Usage counts against your plans.
 
 Exa's keyless search is rate-limited in short bursts. Omarchat retries once and
 then tells you; set `EXA_API_KEY` (free at exa.ai) in your session environment

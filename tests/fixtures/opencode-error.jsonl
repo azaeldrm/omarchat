@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"Internal error: Bad Request: {\"detail\":\"The 'gpt-5.3-codex-spark' model is not supported when using Codex with a ChatGPT account.\"}","data":{"service":"session","errorName":"APIError"}}}

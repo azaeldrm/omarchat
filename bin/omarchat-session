@@ -10,9 +10,10 @@
 # Whatever the agent, the session can search the web and nothing else:
 #
 # - Each backend allows a search tool and no other tool. Claude Code's
-#   WebSearch runs on Anthropic's servers; Pi gets Omarchat's web_search, which
-#   only sends a query to a fixed search service. Neither takes a URL, so the
-#   model can't reach this machine or the local network.
+#   WebSearch runs on Anthropic's servers and Codex's on OpenAI's; Pi gets
+#   Omarchat's web_search and opencode keeps its websearch, which only send a
+#   query to a fixed search service. None takes a URL, so the model can't
+#   reach this machine or the local network.
 # - The agent runs in a bubblewrap sandbox: the filesystem is read-only, /tmp
 #   is private, and $HOME is an empty tmpfs. Only Omarchat itself and the
 #   agent's own program come back (read-only), plus the agent's state

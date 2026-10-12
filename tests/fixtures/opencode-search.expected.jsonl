@@ -1,0 +1,58 @@
+{"type":"tool","name":"web_search","query":""}
+{"type":"tool","name":"web_search","query":"gold spot price per ounce today October 12 2026 USD"}
+{"type":"tool","name":"web_search","query":"gold spot price per ounce today October 12 2026 USD"}
+{"type":"text","delta":"Gold"}
+{"type":"text","delta":" is"}
+{"type":"text","delta":" about"}
+{"type":"text","delta":" **"}
+{"type":"text","delta":"$"}
+{"type":"text","delta":"4"}
+{"type":"text","delta":","}
+{"type":"text","delta":"204"}
+{"type":"text","delta":" USD"}
+{"type":"text","delta":" per"}
+{"type":"text","delta":" t"}
+{"type":"text","delta":"roy"}
+{"type":"text","delta":" ounce"}
+{"type":"text","delta":"**"}
+{"type":"text","delta":" ("}
+{"type":"text","delta":"spot"}
+{"type":"text","delta":","}
+{"type":"text","delta":" as"}
+{"type":"text","delta":" of"}
+{"type":"text","delta":" Oct"}
+{"type":"text","delta":"."}
+{"type":"text","delta":" "}
+{"type":"text","delta":"12"}
+{"type":"text","delta":","}
+{"type":"text","delta":" "}
+{"type":"text","delta":"202"}
+{"type":"text","delta":"6"}
+{"type":"text","delta":";"}
+{"type":"text","delta":" prices"}
+{"type":"text","delta":" move"}
+{"type":"text","delta":" continuously"}
+{"type":"text","delta":")."}
+{"type":"text","delta":" ["}
+{"type":"text","delta":"Source"}
+{"type":"text","delta":":"}
+{"type":"text","delta":" X"}
+{"type":"text","delta":"AU"}
+{"type":"text","delta":"/USD"}
+{"type":"text","delta":"]("}
+{"type":"text","delta":"https"}
+{"type":"text","delta":"://"}
+{"type":"text","delta":"exa"}
+{"type":"text","delta":".ai"}
+{"type":"text","delta":"/library"}
+{"type":"text","delta":"/"}
+{"type":"text","delta":"markets"}
+{"type":"text","delta":"/"}
+{"type":"text","delta":"fore"}
+{"type":"text","delta":"x"}
+{"type":"text","delta":"/X"}
+{"type":"text","delta":"AU"}
+{"type":"text","delta":"USD"}
+{"type":"text","delta":")"}
+{"type":"answer","text":"Gold is about **$4,204 USD per troy ounce** (spot, as of Oct. 12, 2026; prices move continuously). [Source: XAU/USD](https://exa.ai/library/markets/forex/XAUUSD)"}
+{"type":"done"}
