@@ -1,0 +1,3 @@
+{"method":"turn/started","params":{"turn":{"status":"inProgress","items":[]}}}
+{"method":"error","params":{"error":{"message":"The model is not available on your plan."},"willRetry":false}}
+{"method":"turn/completed","params":{"turn":{"status":"failed","items":[],"error":{"message":"The model is not available on your plan."}}}}

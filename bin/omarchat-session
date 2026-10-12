@@ -13,9 +13,12 @@
 #   WebSearch runs on Anthropic's servers; Pi gets Omarchat's web_search, which
 #   only sends a query to a fixed search service. Neither takes a URL, so the
 #   model can't reach this machine or the local network.
-# - The agent runs in a bubblewrap sandbox: the whole filesystem is read-only,
-#   /tmp is private, and only the agent's own state (`<backend> paths`, for
-#   token refreshes) is writable. It dies with the card that started it.
+# - The agent runs in a bubblewrap sandbox: the filesystem is read-only, /tmp
+#   is private, and $HOME is an empty tmpfs. Only Omarchat itself and the
+#   agent's own program come back (read-only), plus the agent's state
+#   (`<backend> paths`, writable, for token refreshes). Documents, keys, and
+#   other configs aren't there to read, whatever tools an agent turns out to
+#   have. It dies with the card that started it.
 
 set -euo pipefail
 
@@ -46,7 +49,9 @@ if ! command -v bwrap >/dev/null; then
   exit 1
 fi
 
-OMARCHAT_AGENT_BIN=$(omarchat_agent_bin "$agent")
+# The real path: links like mise's installs/<agent>/latest point into a part
+# of $HOME the sandbox hides.
+OMARCHAT_AGENT_BIN=$(readlink -f "$(omarchat_agent_bin "$agent")")
 export OMARCHAT_AGENT_BIN
 
 OMARCHAT_SYSTEM_PROMPT="You are Omarchat, a quick-answer assistant summoned from the \
@@ -60,6 +65,11 @@ not sure of. Prefer one search; only dig further when it falls short.
 - When you used the web, end with the sources as short Markdown links."
 export OMARCHAT_SYSTEM_PROMPT
 
+# Put back what a session needs from under $HOME: this plugin (backends,
+# translations, the Pi search tool) and the agent's own program, read-only.
+plugin_root=$(dirname "$here")
+agent_root=$(dirname "$OMARCHAT_AGENT_BIN")
+readable=(--ro-bind "$plugin_root" "$plugin_root" --ro-bind "$agent_root" "$agent_root")
 writable=()
 while IFS= read -r path; do
   [[ -n $path ]] && writable+=(--bind-try "$path" "$path")
@@ -70,6 +80,8 @@ exec bwrap \
   --dev /dev \
   --proc /proc \
   --tmpfs /tmp \
+  --tmpfs "$HOME" \
+  "${readable[@]}" \
   "${writable[@]}" \
   --chdir /tmp \
   --unshare-pid \

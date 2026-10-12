@@ -18,7 +18,7 @@ fi
 
 scripts=(
   bin/omarchat-model bin/omarchat-models bin/omarchat-session
-  backends/lib.sh backends/claude backends/pi
+  backends/lib.sh backends/claude backends/pi backends/codex
   tests/run tests/lib.sh
 )
 for test_script in "$repo"/tests/offline/*.sh "$repo"/tests/live/*.sh; do

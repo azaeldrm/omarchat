@@ -1,0 +1,59 @@
+{"result":{"turn":{"items":[],"itemsView":"notLoaded","status":"inProgress","error":null}}}
+{"method":"turn/started","params":{"turn":{"items":[],"itemsView":"notLoaded","status":"inProgress","error":null}},"emittedAtMs":1791795012043}
+{"method":"item/started","params":{"item":{"type":"userMessage","clientId":null,"content":[{"type":"text","text":"What is the latest Hyprland release? Search the web, answer in one short line.","text_elements":[]}]}},"emittedAtMs":1791795013312}
+{"method":"item/completed","params":{"item":{"type":"userMessage","clientId":null,"content":[{"type":"text","text":"What is the latest Hyprland release? Search the web, answer in one short line.","text_elements":[]}]},"completedAtMs":1791795013312},"emittedAtMs":1791795013312}
+{"method":"item/started","params":{"item":{"type":"agentMessage","text":"","phase":"commentary","memoryCitation":null,"delivery":null,"questions":null}},"emittedAtMs":1791795016374}
+{"method":"item/agentMessage/delta","params":{"delta":"I"},"emittedAtMs":1791795016374}
+{"method":"item/agentMessage/delta","params":{"delta":"’ll"},"emittedAtMs":1791795016374}
+{"method":"item/agentMessage/delta","params":{"delta":" check"},"emittedAtMs":1791795016374}
+{"method":"item/agentMessage/delta","params":{"delta":" Hy"},"emittedAtMs":1791795016374}
+{"method":"item/agentMessage/delta","params":{"delta":"pr"},"emittedAtMs":1791795016502}
+{"method":"item/agentMessage/delta","params":{"delta":"land"},"emittedAtMs":1791795016502}
+{"method":"item/agentMessage/delta","params":{"delta":"’s"},"emittedAtMs":1791795016502}
+{"method":"item/agentMessage/delta","params":{"delta":" latest"},"emittedAtMs":1791795016502}
+{"method":"item/agentMessage/delta","params":{"delta":" release"},"emittedAtMs":1791795016502}
+{"method":"item/agentMessage/delta","params":{"delta":".\n"},"emittedAtMs":1791795016502}
+{"method":"item/completed","params":{"item":{"type":"agentMessage","text":"I’ll check Hyprland’s latest release.\n","phase":"commentary","memoryCitation":null,"delivery":null,"questions":null},"completedAtMs":1791795016503},"emittedAtMs":1791795016503}
+{"method":"item/started","params":{"item":{"type":"webSearch","query":"","action":null,"results":[]}},"emittedAtMs":1791795017377}
+{"method":"item/completed","params":{"item":{"type":"webSearch","query":"Hyprland latest release github","action":{"type":"search","query":"Hyprland latest release github","queries":null},"results":[]},"completedAtMs":1791795018686},"emittedAtMs":1791795018687}
+{"method":"item/started","params":{"item":{"type":"webSearch","query":"","action":null,"results":[]}},"emittedAtMs":1791795022530}
+{"method":"item/completed","params":{"item":{"type":"webSearch","query":"https://github.com/hyprwm/Hyprland/releases/latest","action":{"type":"openPage","url":"https://github.com/hyprwm/Hyprland/releases/latest"},"results":[]},"completedAtMs":1791795023436},"emittedAtMs":1791795023436}
+{"method":"item/started","params":{"item":{"type":"agentMessage","text":"","phase":"final_answer","memoryCitation":null,"delivery":null,"questions":null}},"emittedAtMs":1791795026047}
+{"method":"item/agentMessage/delta","params":{"delta":"The"},"emittedAtMs":1791795026090}
+{"method":"item/agentMessage/delta","params":{"delta":" latest"},"emittedAtMs":1791795026090}
+{"method":"item/agentMessage/delta","params":{"delta":" Hy"},"emittedAtMs":1791795026090}
+{"method":"item/agentMessage/delta","params":{"delta":"pr"},"emittedAtMs":1791795026090}
+{"method":"item/agentMessage/delta","params":{"delta":"land"},"emittedAtMs":1791795026091}
+{"method":"item/agentMessage/delta","params":{"delta":" release"},"emittedAtMs":1791795026091}
+{"method":"item/agentMessage/delta","params":{"delta":" is"},"emittedAtMs":1791795026321}
+{"method":"item/agentMessage/delta","params":{"delta":" ["},"emittedAtMs":1791795026321}
+{"method":"item/agentMessage/delta","params":{"delta":"v"},"emittedAtMs":1791795026321}
+{"method":"item/agentMessage/delta","params":{"delta":"0"},"emittedAtMs":1791795026321}
+{"method":"item/agentMessage/delta","params":{"delta":"."},"emittedAtMs":1791795026321}
+{"method":"item/agentMessage/delta","params":{"delta":"56"},"emittedAtMs":1791795026321}
+{"method":"item/agentMessage/delta","params":{"delta":"."},"emittedAtMs":1791795026321}
+{"method":"item/agentMessage/delta","params":{"delta":"2"},"emittedAtMs":1791795026321}
+{"method":"item/agentMessage/delta","params":{"delta":"]("},"emittedAtMs":1791795026496}
+{"method":"item/agentMessage/delta","params":{"delta":"https"},"emittedAtMs":1791795026496}
+{"method":"item/agentMessage/delta","params":{"delta":"://"},"emittedAtMs":1791795026496}
+{"method":"item/agentMessage/delta","params":{"delta":"github"},"emittedAtMs":1791795026496}
+{"method":"item/agentMessage/delta","params":{"delta":".com"},"emittedAtMs":1791795026496}
+{"method":"item/agentMessage/delta","params":{"delta":"/h"},"emittedAtMs":1791795026496}
+{"method":"item/agentMessage/delta","params":{"delta":"y"},"emittedAtMs":1791795026496}
+{"method":"item/agentMessage/delta","params":{"delta":"pr"},"emittedAtMs":1791795026496}
+{"method":"item/agentMessage/delta","params":{"delta":"wm"},"emittedAtMs":1791795026674}
+{"method":"item/agentMessage/delta","params":{"delta":"/"},"emittedAtMs":1791795026674}
+{"method":"item/agentMessage/delta","params":{"delta":"Hy"},"emittedAtMs":1791795026674}
+{"method":"item/agentMessage/delta","params":{"delta":"pr"},"emittedAtMs":1791795026674}
+{"method":"item/agentMessage/delta","params":{"delta":"land"},"emittedAtMs":1791795026674}
+{"method":"item/agentMessage/delta","params":{"delta":"/releases"},"emittedAtMs":1791795026674}
+{"method":"item/agentMessage/delta","params":{"delta":"/tag"},"emittedAtMs":1791795026674}
+{"method":"item/agentMessage/delta","params":{"delta":"/v"},"emittedAtMs":1791795026674}
+{"method":"item/agentMessage/delta","params":{"delta":"0"},"emittedAtMs":1791795026805}
+{"method":"item/agentMessage/delta","params":{"delta":"."},"emittedAtMs":1791795026805}
+{"method":"item/agentMessage/delta","params":{"delta":"56"},"emittedAtMs":1791795026805}
+{"method":"item/agentMessage/delta","params":{"delta":"."},"emittedAtMs":1791795026805}
+{"method":"item/agentMessage/delta","params":{"delta":"2"},"emittedAtMs":1791795026805}
+{"method":"item/agentMessage/delta","params":{"delta":")."},"emittedAtMs":1791795026805}
+{"method":"item/completed","params":{"item":{"type":"agentMessage","text":"The latest Hyprland release is [v0.56.2](https://github.com/hyprwm/Hyprland/releases/tag/v0.56.2).","phase":"final_answer","memoryCitation":null,"delivery":null,"questions":null},"completedAtMs":1791795026805},"emittedAtMs":1791795026806}
+{"method":"turn/completed","params":{"turn":{"items":[{"type":"agentMessage","text":"The latest Hyprland release is [v0.56.2](https://github.com/hyprwm/Hyprland/releases/tag/v0.56.2).","phase":"final_answer","memoryCitation":null,"delivery":null,"questions":null}],"itemsView":"summary","status":"completed","error":null}},"emittedAtMs":1791795026854}

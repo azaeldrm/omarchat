@@ -22,7 +22,7 @@
 
 # Agents with a backend here, as id:name, in the order settings lists them and
 # the order Omarchat falls back through when nothing usable is chosen.
-omarchat_agents=("claude:Claude Code" "pi:Pi")
+omarchat_agents=("claude:Claude Code" "pi:Pi" "codex:Codex")
 
 omarchat_agent_name() {
   local entry

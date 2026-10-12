@@ -41,7 +41,7 @@ assert_eq "LICENSE matches the manifest's license" "MIT" \
 
 # Plugins install as plain git checkouts, so the scripts must be executable
 # in git itself, not just on this disk.
-for script in bin/omarchat-model bin/omarchat-models bin/omarchat-session backends/claude backends/pi tests/run; do
+for script in bin/omarchat-model bin/omarchat-models bin/omarchat-session backends/claude backends/pi backends/codex tests/run; do
   mode=$(git -C "$repo" ls-files -s "$script" | cut -d' ' -f1)
   if [[ -z $mode ]]; then
     skip "$script is executable in git (not committed yet)"

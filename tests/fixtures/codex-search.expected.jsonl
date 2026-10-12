@@ -1,0 +1,51 @@
+{"type":"text","delta":"I"}
+{"type":"text","delta":"’ll"}
+{"type":"text","delta":" check"}
+{"type":"text","delta":" Hy"}
+{"type":"text","delta":"pr"}
+{"type":"text","delta":"land"}
+{"type":"text","delta":"’s"}
+{"type":"text","delta":" latest"}
+{"type":"text","delta":" release"}
+{"type":"text","delta":".\n"}
+{"type":"answer","text":"I’ll check Hyprland’s latest release.\n"}
+{"type":"tool","name":"web_search","query":""}
+{"type":"tool","name":"web_search","query":""}
+{"type":"text","delta":"The"}
+{"type":"text","delta":" latest"}
+{"type":"text","delta":" Hy"}
+{"type":"text","delta":"pr"}
+{"type":"text","delta":"land"}
+{"type":"text","delta":" release"}
+{"type":"text","delta":" is"}
+{"type":"text","delta":" ["}
+{"type":"text","delta":"v"}
+{"type":"text","delta":"0"}
+{"type":"text","delta":"."}
+{"type":"text","delta":"56"}
+{"type":"text","delta":"."}
+{"type":"text","delta":"2"}
+{"type":"text","delta":"]("}
+{"type":"text","delta":"https"}
+{"type":"text","delta":"://"}
+{"type":"text","delta":"github"}
+{"type":"text","delta":".com"}
+{"type":"text","delta":"/h"}
+{"type":"text","delta":"y"}
+{"type":"text","delta":"pr"}
+{"type":"text","delta":"wm"}
+{"type":"text","delta":"/"}
+{"type":"text","delta":"Hy"}
+{"type":"text","delta":"pr"}
+{"type":"text","delta":"land"}
+{"type":"text","delta":"/releases"}
+{"type":"text","delta":"/tag"}
+{"type":"text","delta":"/v"}
+{"type":"text","delta":"0"}
+{"type":"text","delta":"."}
+{"type":"text","delta":"56"}
+{"type":"text","delta":"."}
+{"type":"text","delta":"2"}
+{"type":"text","delta":")."}
+{"type":"answer","text":"The latest Hyprland release is [v0.56.2](https://github.com/hyprwm/Hyprland/releases/tag/v0.56.2)."}
+{"type":"done"}

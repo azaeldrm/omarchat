@@ -1,0 +1,171 @@
+#!/bin/bash
+
+# Omarchat backend for Codex. See lib.sh for the interface.
+#
+# Speaks Codex's app-server protocol (JSON-RPC over stdio), OpenAI's
+# documented way to embed Codex in a client: https://developers.openai.com/codex/app-server
+# One app-server holds the conversation as an ephemeral, read-only thread.
+#
+# Codex is built around tools, so the session switches off everything but web
+# search: the shell, command execution, apps, browsers, computer use, plugins,
+# skills, MCP servers, hooks, subagents, and image generation. It keeps
+# view_image and apply_patch, which no setting removes in this version:
+# apply_patch can't write (read-only thread, read-only sandbox), and view_image
+# can't see anything personal because omarchat-session hides $HOME.
+
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+# shellcheck source=SCRIPTDIR/lib.sh
+source "$here/lib.sh"
+
+disabled_features=(
+  shell_tool unified_exec shell_snapshot apps browser_use browser_use_external
+  browser_use_full_cdp_access computer_use in_app_browser multi_agent plugins
+  remote_plugin skill_search skill_mcp_dependency_install hooks goals sleep_tool
+  tool_suggest
+)
+
+app_server() {
+  local bin args=() feature
+  bin=$(omarchat_agent_bin codex)
+  for feature in "${disabled_features[@]}"; do args+=(--disable "$feature"); done
+  exec "$bin" app-server \
+    "${args[@]}" \
+    -c 'features.image_generation=false' \
+    -c 'mcp_servers={}' \
+    -c 'web_search="live"'
+}
+
+# Start an app-server on fifos: fd 3 writes to it, fd 4 reads from it, and
+# server_pid is set. The caller's EXIT trap cleans up.
+start_server() {
+  workdir=$(mktemp -d)
+  mkfifo "$workdir/in" "$workdir/out"
+  (cd /tmp && app_server) <"$workdir/in" >"$workdir/out" &
+  server_pid=$!
+  exec 3>"$workdir/in" 4<"$workdir/out"
+  trap 'exec 3>&-; kill "$server_pid" 2>/dev/null; rm -rf "$workdir"' EXIT
+  rpc 0 initialize '{"clientInfo":{"name":"omarchat","title":"Omarchat","version":"0.1.0"}}' >&3
+  await 0 >/dev/null
+  echo '{"method":"initialized","params":{}}' >&3
+}
+
+# The models this account can use, from the server rather than a fixed list:
+# {"id", "name", "default"} per line.
+list_models() {
+  start_server 2>/dev/null
+  rpc 1 model/list '{"limit":100,"includeHidden":false}' >&3
+  await 1 | jq -c '.result.data[]? | select(.hidden | not)
+    | {id: .model, name: (.displayName // .model), default: (.isDefault // false)}'
+}
+
+# rpc <id> <method> <params-json>
+rpc() {
+  jq -nc --argjson id "$1" --arg method "$2" --argjson params "$3" '{id: $id, method: $method, params: $params}'
+}
+
+# Read app-server output until the response to request <id>; print it.
+await() {
+  local line
+  while IFS= read -r line <&4; do
+    if jq -e --argjson id "$1" '.id == $id and (has("result") or has("error"))' <<<"$line" >/dev/null 2>&1; then
+      echo "$line"
+      return 0
+    fi
+  done
+  return 1
+}
+
+case "${1:-}" in
+check)
+  if ! omarchat_agent_bin codex >/dev/null; then
+    echo "Not installed"
+    exit 1
+  fi
+  if [[ ! -s $HOME/.codex/auth.json && -z ${OPENAI_API_KEY:-} ]]; then
+    echo "Not logged in"
+    exit 1
+  fi
+  ;;
+
+models)
+  list_models
+  ;;
+
+default)
+  # The model Codex marks as its default, or else the first one offered.
+  models=$(list_models)
+  pick=$(jq -c 'select(.default) | {id, name}' <<<"$models" | head -1)
+  [[ -n $pick ]] || pick=$(head -1 <<<"$models" | jq -c '{id, name}')
+  [[ -n $pick ]] && echo "$pick"
+  ;;
+
+paths)
+  printf '%s\n' "$HOME/.codex"
+  ;;
+
+encode)
+  # A typed message as turn/start input. The text is only ever a text input;
+  # the backend fills in the request id and thread.
+  jq --unbuffered -c '[{type: "text", text: .text}]'
+  ;;
+
+translate)
+  jq --unbuffered -c -f "$here/codex.jq"
+  ;;
+
+session)
+  model=${2:?usage: codex session <model>}
+  start_server
+
+  thread_params=$(jq -nc --arg model "$model" --arg instructions "${OMARCHAT_SYSTEM_PROMPT:-}" '{
+    model: $model,
+    cwd: "/tmp",
+    sandbox: "read-only",
+    approvalPolicy: "never",
+    ephemeral: true,
+    developerInstructions: $instructions,
+    serviceName: "omarchat"
+  }')
+  rpc 1 thread/start "$thread_params" >&3
+  started=$(await 1)
+  thread=$(jq -r '.result.thread.id // empty' <<<"$started")
+  if [[ -z $thread ]]; then
+    echo "Codex couldn't start a chat: $(jq -r '.error.message // "no thread"' <<<"$started")" >&2
+    exit 1
+  fi
+
+  # Everything the server says from here on: answer its requests (nothing is
+  # ever approved), and translate the rest into Omarchat events.
+  {
+    while IFS= read -r line; do
+      if jq -e 'has("id") and has("method")' <<<"$line" >/dev/null 2>&1; then
+        jq -c '
+          if .method | test("[Aa]pproval$") then {id, result: {decision: "decline"}}
+          else {id, error: {code: -32601, message: "Omarchat does not support this request"}} end' <<<"$line" >&3
+      else
+        # OMARCHAT_CODEX_RECORD=<file> keeps the raw stream, for re-recording
+        # tests/fixtures/codex-*.jsonl (scrub with tests/fixtures/scrub-codex.jq).
+        [[ -n ${OMARCHAT_CODEX_RECORD:-} ]] && echo "$line" >>"$OMARCHAT_CODEX_RECORD"
+        echo "$line"
+      fi
+    done <&4
+  } | "$0" translate &
+  reader=$!
+
+  id=2
+  "$0" encode | while IFS= read -r input; do
+    rpc "$id" turn/start "$(jq -nc --arg thread "$thread" --argjson input "$input" '{threadId: $thread, input: $input}')" >&3
+    id=$((id + 1))
+  done
+  # The card closed its end: stop the server so the reader drains and ends.
+  kill "$server_pid" 2>/dev/null || true
+  wait "$reader" 2>/dev/null || true
+  ;;
+
+*)
+  echo "usage: codex check|models|default|paths|encode|translate|session <model>" >&2
+  exit 2
+  ;;
+esac

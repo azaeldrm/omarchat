@@ -3,8 +3,8 @@
 # across turns, and every turn ends cleanly. Checks Omarchat's plumbing, not
 # the model's wording. Costs a little usage.
 #
-# Models: OMARCHAT_TEST_CLAUDE_MODEL (default claude-haiku-5-5) and
-# OMARCHAT_TEST_PI_MODEL (default: Pi's own default model).
+# Models: OMARCHAT_TEST_<AGENT>_MODEL (e.g. OMARCHAT_TEST_PI_MODEL), else
+# Claude Haiku 5.5 for Claude Code and each other agent's own default.
 
 # shellcheck source=SCRIPTDIR/../lib.sh
 source "$(dirname "$0")/../lib.sh"
@@ -12,14 +12,23 @@ source "$(dirname "$0")/../lib.sh"
 export OMARCHAT_MODEL_FILE="$scratch/model"
 export XDG_CACHE_HOME="$scratch/cache"
 
+# shellcheck source=SCRIPTDIR/../../backends/lib.sh
+source "$repo/backends/lib.sh"
+
+# OMARCHAT_TEST_<AGENT>_MODEL, else the agent's own default (Claude: Haiku).
 test_model() {
-  case "$1" in
-  claude) echo "${OMARCHAT_TEST_CLAUDE_MODEL:-claude-haiku-5-5}" ;;
-  pi) echo "${OMARCHAT_TEST_PI_MODEL:-$("$repo/backends/pi" default | jq -r .id)}" ;;
-  esac
+  local override="OMARCHAT_TEST_${1^^}_MODEL"
+  if [[ -n ${!override:-} ]]; then
+    echo "${!override}"
+  elif [[ $1 == claude ]]; then
+    echo claude-haiku-5-5
+  else
+    "$repo/backends/$1" default | jq -r .id
+  fi
 }
 
-for agent in claude pi; do
+for entry in "${omarchat_agents[@]}"; do
+  agent=${entry%%:*}
   if ! reason=$("$repo/backends/$agent" check); then
     skip "$agent: $reason"
     continue
