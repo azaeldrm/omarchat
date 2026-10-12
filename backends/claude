@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Omarchat backend for Claude Code. See lib.sh for the interface.
+#
+# One claude process holds the whole conversation (stream-json on stdin and
+# stdout). WebSearch is its only tool and runs on Anthropic's servers.
+
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+source "$here/lib.sh"
+
+case "${1:-}" in
+check)
+  if ! omarchat_agent_bin claude >/dev/null; then
+    echo "Not installed"
+    exit 1
+  fi
+  if [[ ! -s $HOME/.claude/.credentials.json && -z ${ANTHROPIC_API_KEY:-} ]]; then
+    echo "Not logged in"
+    exit 1
+  fi
+  ;;
+
+models)
+  # Claude Code accepts these ids but has no command that lists them.
+  printf '%s\n' \
+    '{"id":"claude-haiku-5-5","name":"Claude Haiku 5.5"}' \
+    '{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"}' \
+    '{"id":"claude-opus-5-5","name":"Claude Opus 5.5"}' \
+    '{"id":"claude-fable-5-1","name":"Claude Fable 5.1"}'
+  ;;
+
+default)
+  echo '{"id":"claude-haiku-5-5","name":"Claude Haiku 5.5"}'
+  ;;
+
+paths)
+  printf '%s\n' "$HOME/.claude" "$HOME/.claude.json"
+  ;;
+
+session)
+  model=${2:?usage: claude session <model>}
+  bin=$(omarchat_agent_bin claude)
+
+  jq --unbuffered -c '{type: "user", message: {role: "user", content: .text}}' |
+    "$bin" -p \
+      --input-format stream-json \
+      --output-format stream-json \
+      --include-partial-messages \
+      --verbose \
+      --model "$model" \
+      --tools WebSearch \
+      --allowedTools WebSearch \
+      --setting-sources "" \
+      --strict-mcp-config \
+      --no-session-persistence \
+      --disable-slash-commands \
+      --system-prompt "${OMARCHAT_SYSTEM_PROMPT:-}" |
+    jq --unbuffered -c '
+      if .type == "stream_event" and .event.type == "content_block_delta" and .event.delta.type == "text_delta" then
+        {type: "text", delta: .event.delta.text}
+      elif .type == "assistant" then
+        .message.content[]? | select(.type == "tool_use" or .type == "server_tool_use")
+        | {type: "tool", name: .name, query: (.input.query // "")}
+      elif .type == "result" then
+        (if .is_error then {type: "error", text: (.result // "Something went wrong.")}
+         else {type: "answer", text: (.result // "")} end),
+        {type: "done"}
+      else empty end'
+  ;;
+
+*)
+  echo "usage: claude check|models|default|paths|session <model>" >&2
+  exit 2
+  ;;
+esac

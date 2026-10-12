@@ -1,0 +1,5 @@
+  // Omarchat: optional rows for the Alt+Space menu. Paste them inside the braces
+  // of ~/.config/omarchy/extensions/omarchy-menu.jsonc (the menu hot-reloads).
+  "omarchat": {"icon":"󰚩","label":"Omarchat","aliases":["chat","ask","llm"]},
+  "omarchat.ask": {"icon":"󰚩","label":"Ask Omarchat","aliases":["ask"],"action":"omarchy-shell shell summon omarchat '{}'"},
+  "omarchat.settings": {"icon":"","label":"Settings","title":"Omarchat Settings","description":"Choose the agent and model","action":"omarchy-shell shell summon omarchat '{\"settings\":true}'"},

@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# omarchat-session
+#
+# One ephemeral Omarchat conversation with the selected agent and model
+# (omarchat-model). The chat card writes {"text": ...} lines to stdin and reads
+# Omarchat events from stdout (see backends/lib.sh). The process lives exactly
+# as long as the card, so closing the card is the end of the conversation.
+#
+# Whatever the agent, the session can search the web and nothing else:
+#
+# - Each backend allows a search tool and no other tool. Claude Code's
+#   WebSearch runs on Anthropic's servers; Pi gets Omarchat's web_search, which
+#   only sends a query to a fixed search service. Neither takes a URL, so the
+#   model can't reach this machine or the local network.
+# - The agent runs in a bubblewrap sandbox: the whole filesystem is read-only,
+#   /tmp is private, and only the agent's own state (`<backend> paths`, for
+#   token refreshes) is writable. It dies with the card that started it.
+
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+backends="$(dirname "$here")/backends"
+source "$backends/lib.sh"
+
+IFS=$'\t' read -r agent model _ < <("$here/omarchat-model")
+backend="$backends/$agent"
+
+# Fail with something readable: the chat card shows stderr when the session
+# exits before answering.
+if [[ $agent == "none" ]]; then
+  echo "No agent has been set up yet." >&2
+  exit 1
+fi
+if [[ ! -x $backend ]]; then
+  echo "Omarchat doesn't support the agent '$agent'. Pick another model in settings (Ctrl+,)." >&2
+  exit 1
+fi
+if ! reason=$("$backend" check); then
+  echo "$(omarchat_agent_name "$agent"): $reason" >&2
+  exit 1
+fi
+if ! command -v bwrap >/dev/null; then
+  echo "Omarchat runs sandboxed and needs bubblewrap: omarchy pkg add bubblewrap" >&2
+  exit 1
+fi
+
+OMARCHAT_AGENT_BIN=$(omarchat_agent_bin "$agent")
+export OMARCHAT_AGENT_BIN
+
+export OMARCHAT_SYSTEM_PROMPT="You are Omarchat, a quick-answer assistant summoned from the \
+Omarchy desktop launcher (Arch Linux + Hyprland). The user wants a fast, direct \
+answer and will discard the conversation afterwards. Today is $(date '+%A, %B %-d, %Y').
+
+- Lead with the answer. Keep it short unless asked for depth.
+- Use Markdown sparingly: short lists, inline code, fenced code blocks for commands.
+- Search the web when the question depends on current or specific facts you are \
+not sure of. Prefer one search; only dig further when it falls short.
+- When you used the web, end with the sources as short Markdown links."
+
+writable=()
+while IFS= read -r path; do
+  [[ -n $path ]] && writable+=(--bind-try "$path" "$path")
+done < <("$backend" paths)
+
+exec bwrap \
+  --ro-bind / / \
+  --dev /dev \
+  --proc /proc \
+  --tmpfs /tmp \
+  "${writable[@]}" \
+  --chdir /tmp \
+  --unshare-pid \
+  --unshare-ipc \
+  --unshare-uts \
+  --die-with-parent \
+  --new-session \
+  -- "$backend" session "$model"

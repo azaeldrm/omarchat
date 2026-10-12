@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# omarchat-model                              agent, model, and name, tab-separated;
+#                                             agent "none" when no agent is usable
+# omarchat-model --label                      "<model name> · <agent name>", for the header
+# omarchat-model set <agent> <model> [name]   choose what the next chat uses
+# omarchat-model unavailable <reason>         remember the current model was refused
+#
+# The settings view in the chat card lists the choices (omarchat-models) and
+# calls `set`. Until something usable is chosen, the first usable agent's own
+# default stands in (Claude Haiku 5.5 for Claude Code, Pi's default model for
+# Pi), so a first chat works with whichever agent is set up. The stand-in isn't
+# saved: install or log in to another agent and the next chat follows.
+
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+backends="$(dirname "$here")/backends"
+source "$backends/lib.sh"
+
+selection_file="$HOME/.config/omarchy/omarchat/model"
+
+usable() {
+  [[ -x $backends/$1 ]] && "$backends/$1" check >/dev/null 2>&1
+}
+
+fallback() {
+  local entry agent pick
+  for entry in "${omarchat_agents[@]}"; do
+    agent=${entry%%:*}
+    usable "$agent" || continue
+    pick=$("$backends/$agent" default 2>/dev/null) || continue
+    [[ -n $pick ]] || continue
+    jq -r --arg agent "$agent" '[$agent, .id, .name] | @tsv' <<<"$pick"
+    return
+  done
+  # Nothing usable: the card shows how to set an agent up instead of a chat.
+  printf 'none\t\t\n'
+}
+
+current() {
+  local line=""
+  [[ -s $selection_file ]] && IFS= read -r line <"$selection_file"
+  if [[ -n $line ]] && usable "${line%%$'\t'*}"; then
+    echo "$line"
+  else
+    fallback
+  fi
+}
+
+case "${1:-}" in
+"")
+  current
+  ;;
+
+--label)
+  IFS=$'\t' read -r agent model name < <(current)
+  if [[ $agent == "none" ]]; then
+    echo "No agent set up"
+  else
+    echo "${name:-$model} · $(omarchat_agent_name "$agent")"
+  fi
+  ;;
+
+set)
+  agent=${2:?usage: omarchat-model set <agent> <model> [name]}
+  model=${3:?usage: omarchat-model set <agent> <model> [name]}
+  name=${4:-$model}
+  mkdir -p "$(dirname "$selection_file")"
+  printf '%s\t%s\t%s\n' "$agent" "$model" "$name" >"$selection_file"
+  ;;
+
+unavailable)
+  # The chat card calls this when a model is refused for good (not on this
+  # plan or account); omarchat-models greys it out with the reason.
+  reason=${2:-Not available}
+  IFS=$'\t' read -r agent model _ < <(current)
+  file="${XDG_CACHE_HOME:-$HOME/.cache}/omarchat/unavailable.json"
+  mkdir -p "$(dirname "$file")"
+  [[ -s $file ]] || echo '{}' >"$file"
+  jq --arg key "$agent/$model" --arg reason "$reason" --argjson now "$(date +%s)" \
+    '.[$key] = {reason: $reason, at: $now}' "$file" >"$file.tmp"
+  mv "$file.tmp" "$file"
+  ;;
+
+*)
+  echo "usage: omarchat-model [--label | set <agent> <model> [name] | unavailable <reason>]" >&2
+  exit 2
+  ;;
+esac

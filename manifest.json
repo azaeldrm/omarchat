@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "omarchat",
+  "name": "Omarchat",
+  "version": "0.1.0",
+  "author": "Azael del Rosario",
+  "license": "MIT",
+  "description": "Ephemeral, search-only Claude chat in a menu-styled card",
+  "kinds": [
+    "overlay"
+  ],
+  "entryPoints": {
+    "overlay": "Omarchat.qml"
+  }
+}

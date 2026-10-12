@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# omarchat-models [--cached]
+#
+# Every agent Omarchat supports, whether it can be used here, and the models
+# it offers, as one JSON document for the settings view:
+#
+#   {"agents": [{"id": "pi", "name": "Pi", "available": true, "reason": "",
+#                "models": [{"id": "anthropic/claude-haiku-5-5",
+#                            "name": "Claude Haiku 5.5", "provider": "anthropic"}]}]}
+#
+# The result is cached in ~/.cache/omarchat/models.json; --cached prints the
+# cache when there is one, so the view can open instantly and refresh after.
+# Models a chat found refused (omarchat-model unavailable) carry an
+# "unavailable" reason for a week, in case the plan changes.
+
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+backends="$(dirname "$here")/backends"
+source "$backends/lib.sh"
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/omarchat/models.json"
+unavailable="${XDG_CACHE_HOME:-$HOME/.cache}/omarchat/unavailable.json"
+
+print_with_unavailable() {
+  local marks="{}"
+  [[ -s $unavailable ]] && marks=$(cat "$unavailable")
+  jq --argjson marks "$marks" '.agents |= map(.id as $agent | .models |= map(
+    ($marks["\($agent)/\(.id)"] // null) as $mark
+    | if $mark != null and (now - $mark.at) < 604800 then . + {unavailable: $mark.reason} else . end))' "$cache"
+}
+
+if [[ ${1:-} == "--cached" && -s $cache ]]; then
+  print_with_unavailable
+  exit 0
+fi
+
+entries=()
+for entry in "${omarchat_agents[@]}"; do
+  id=${entry%%:*}
+  name=${entry#*:}
+  if reason=$("$backends/$id" check 2>/dev/null); then
+    models=$("$backends/$id" models 2>/dev/null | jq -s . 2>/dev/null || echo "[]")
+    reason=""
+    [[ $models == "[]" ]] && reason="No models found"
+  else
+    models="[]"
+    reason=${reason:-Unavailable}
+  fi
+  entries+=("$(jq -nc --arg id "$id" --arg name "$name" --arg reason "$reason" --argjson models "$models" \
+    '{id: $id, name: $name, available: ($reason == ""), reason: $reason, models: $models}')")
+done
+
+mkdir -p "$(dirname "$cache")"
+printf '%s\n' "${entries[@]}" | jq -s '{agents: .}' >"$cache.tmp"
+mv "$cache.tmp" "$cache"
+print_with_unavailable

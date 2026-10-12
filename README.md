@@ -1,0 +1,166 @@
+# Omarchat
+
+A quick, throwaway AI chat for [Omarchy](https://omarchy.org). Press a shortcut,
+ask a question, get an answer, and press Esc. The conversation is gone: nothing
+is saved.
+
+Omarchat opens as a card in the same style as the Omarchy menu and follows your
+theme. It works with the coding agents you already use: pick any model they
+offer, including local ones. The model can search the web and cite its sources,
+but it **cannot** touch your system: no files, no commands, no local network
+(see [Security](#security)).
+
+## Requirements
+
+- Omarchy 4 (the Quickshell-based `omarchy-shell`)
+- At least one supported agent, installed and logged in:
+  - [Claude Code](https://claude.com/claude-code): `omarchy default agent claude`,
+    then run `claude` once and sign in.
+  - [Pi](https://pi.dev): `omarchy default agent pi`, then sign in to providers
+    with `/login` inside `pi`. Every model Pi can use shows up in Omarchat,
+    including local servers such as llama.cpp and Ollama.
+- `bubblewrap`, for the sandbox: `omarchy pkg add bubblewrap`
+
+No agent yet? Open Omarchat anyway. It lists the agents it works with and why
+each isn't ready ("Not installed", "Not logged in"). Choose one and Omarchy
+installs it if needed, makes it your default agent, and opens it so you can
+sign in.
+
+## Install
+
+```bash
+omarchy plugin add https://github.com/azaeldrm/omarchat.git --enable
+```
+
+Then bind a key in `~/.config/hypr/bindings.lua`. For example, to use
+Super+Alt+Space (Omarchy binds it to "Apps menu" by default, so unbind that
+first):
+
+```lua
+hl.unbind("SUPER + ALT + SPACE")
+o.bind("SUPER + ALT + SPACE", "Omarchat", "omarchy-shell shell toggle omarchat '{}'")
+```
+
+Hyprland reloads on save; `hyprctl configerrors` should print nothing.
+
+### Optional: Alt+Space menu rows
+
+`extras/omarchy-menu.jsonc` adds an **Omarchat** entry to the Omarchy menu with
+**Ask Omarchat** and **Settings**. Paste its rows inside the braces of
+`~/.config/omarchy/extensions/omarchy-menu.jsonc`.
+
+## Usage
+
+| Key | Action |
+| --- | --- |
+| Enter | Send |
+| Shift+Enter | New line |
+| Ctrl+, (or click the header) | Settings: choose the agent and model |
+| Ctrl+Y | Copy the last answer as Markdown |
+| PgUp / PgDn | Scroll |
+| Esc, the shortcut again, or a click outside | Close and forget the chat |
+
+Clicking a link opens it in your browser and closes the chat.
+
+### Choosing a model
+
+Settings lists every supported agent with the models it offers, by name.
+Type to filter, use the arrow keys, and press Enter. An agent that can't be
+used says why ("Not logged in", "isn't installed"). Before your first question
+the choice applies right away; once a chat has started, it applies to the next
+one.
+
+Until you choose, Omarchat uses the first usable agent's default: Claude Haiku
+5.5 through Claude Code, or Pi's own default model. It works out of the box
+with whichever agent you've set up. Your choice is saved to
+`~/.config/omarchy/omarchat/model`.
+
+The lists refresh in the background every time the card opens, so an agent you
+install or log in to shows up without any setup.
+
+A few things to know about the lists:
+
+- **Pi lists its whole catalog** for every provider you're logged in to, and
+  some plans don't include every model. For example, a ChatGPT-based Codex
+  login refuses older models. When a model is refused like that, Omarchat greys
+  it out in settings with the reason for a week, in case your plan changes.
+- **Local servers list the models they have loaded** when the list refreshes,
+  so loading a different model on your server changes the list. The first
+  answer after a cold start can take a while.
+
+From scripts, you can open the card with a question already asked, or straight
+into settings:
+
+```bash
+omarchy-shell shell summon omarchat '{"prompt":"What is the latest Hyprland release?"}'
+omarchy-shell shell summon omarchat '{"settings":true}'
+```
+
+## How it works
+
+- `Omarchat.qml` is an overlay plugin. It isn't kept loaded, so hiding it
+  destroys the instance, and with it the chat.
+- `ChatView.qml` runs one `bin/omarchat-session` process for the life of the
+  card. It starts as soon as the card opens, so the agent is warm by the time
+  you finish typing.
+- Each agent has a backend in `backends/` (see `backends/lib.sh`). It checks
+  whether the agent is usable, lists its models, and runs a chat, translating
+  the agent's own output into one event format the card understands.
+  `bin/omarchat-models` collects the lists for settings and caches them in
+  `~/.cache/omarchat/models.json`.
+
+## Security
+
+Omarchat is built so the model can search the web and do nothing else,
+whichever agent answers:
+
+- **A search tool is the only tool.** Claude Code gets its WebSearch, which
+  runs on Anthropic's servers. Pi has no search of its own, so Omarchat gives
+  it `web_search` (`backends/pi-web-search.ts`), which sends the query to
+  [Exa](https://exa.ai)'s hosted search. Neither takes a URL, so the model
+  can't reach your machine or your network. Page-fetching tools are left out on
+  purpose: they fetch from your machine, which would put localhost and LAN
+  services in reach.
+- **The agent runs in a bubblewrap sandbox.** `/` is read-only, `/tmp` is a
+  private tmpfs, and only the agent's own state is writable so your login can
+  refresh (`~/.claude` and `~/.claude.json` for Claude Code, `~/.pi/agent` for
+  Pi). The sandbox dies with the card.
+- **Nothing is persisted.** Sessions run without saving transcripts
+  (`--no-session-persistence`, `--no-session`).
+
+Tested with both agents by asking them to write a file, run a command, read a
+local file, and fetch `http://127.0.0.1`, and with a raw Pi RPC `bash` command
+typed as the message. All were refused, and nothing reached disk or the local
+test server.
+
+What you type and the answers go to the model's provider, and your search
+queries go to Exa when using Pi. Usage counts against your plans.
+
+Exa's keyless search is rate-limited in short bursts. Omarchat retries once and
+then tells you; set `EXA_API_KEY` (free at exa.ai) in your session environment
+for higher limits.
+
+## Update and remove
+
+```bash
+omarchy plugin update omarchat
+omarchy plugin remove omarchat
+```
+
+After an update, run `omarchy restart shell`. The shell keeps the previously
+loaded QML until it restarts.
+
+## Troubleshooting
+
+- **The card names something missing** (an agent, bubblewrap): install it (see
+  [Requirements](#requirements)).
+- **An answer says to log in:** sign in to that agent (`claude`, or `/login`
+  inside `pi`).
+- **A model you expected isn't in settings:** the list refreshes every time the
+  card opens. For a local server, check the model is loaded there.
+- **Nothing opens:** check `omarchy plugin list` shows `omarchat` enabled, then
+  look for errors with `quickshell log -p /usr/share/omarchy/shell -t 50`.
+
+## License
+
+MIT

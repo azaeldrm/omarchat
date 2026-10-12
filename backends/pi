@@ -1,0 +1,104 @@
+#!/bin/bash
+
+# Omarchat backend for Pi. See lib.sh for the interface.
+#
+# One pi process in RPC mode holds the whole conversation. Pi has no web
+# search of its own, so the session loads Omarchat's (pi-web-search.ts) and
+# allows that tool alone. Extensions stay on: providers such as llama.cpp
+# come from Pi's built-in extensions; the tool allowlist keeps any tools they
+# add switched off.
+
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+source "$here/lib.sh"
+
+case "${1:-}" in
+check)
+  if ! omarchat_agent_bin pi >/dev/null; then
+    echo "Not installed"
+    exit 1
+  fi
+  # Pi needs at least one provider: a /login, a custom models.json (local
+  # servers), or a provider key in the environment.
+  if ! jq -e 'length > 0' "$HOME/.pi/agent/auth.json" >/dev/null 2>&1 &&
+    [[ ! -s $HOME/.pi/agent/models.json ]] &&
+    ! env | grep -q -E '^[A-Z0-9_]+_API_KEY='; then
+    echo "Not logged in"
+    exit 1
+  fi
+  ;;
+
+models)
+  bin=$(omarchat_agent_bin pi)
+  # Ask over RPC: unlike --list-models it includes display names. Keep stdin
+  # open until the answer arrives; closing it shuts pi down first.
+  coproc PI { cd /tmp && exec "$bin" --mode rpc --no-session --no-tools --no-mcp --no-skills --no-prompt-templates 2>/dev/null; }
+  printf '%s\n' '{"id":"models","type":"get_available_models"}' >&"${PI[1]}"
+  while IFS= read -r -t 30 line <&"${PI[0]}"; do
+    if jq -e '.type == "response" and .id == "models"' <<<"$line" >/dev/null 2>&1; then
+      # Show the name a provider gives a model; local servers often only
+      # report an id, so fall back to it.
+      jq -c '.data.models[]? | {
+        id: "\(.provider)/\(.id)",
+        name: (if (.name // "") != "" then .name else .id end),
+        provider: .provider
+      }' <<<"$line"
+      break
+    fi
+  done
+  kill "$PI_PID" 2>/dev/null || true
+  ;;
+
+default)
+  # The model Pi itself defaults to, when it's still offered; otherwise the
+  # first one it lists.
+  models=$("$0" models)
+  wanted=$(jq -r '[.defaultProvider, .defaultModel] | select(all(. != null)) | join("/")' \
+    "$HOME/.pi/agent/settings.json" 2>/dev/null || true)
+  pick=$(jq -c --arg id "$wanted" 'select(.id == $id) | {id, name}' <<<"$models" | head -1)
+  [[ -n $pick ]] || pick=$(head -1 <<<"$models" | jq -c '{id, name}')
+  [[ -n $pick ]] && echo "$pick"
+  ;;
+
+paths)
+  printf '%s\n' "$HOME/.pi/agent"
+  ;;
+
+session)
+  model=${2:?usage: pi session <model>}
+  bin=$(omarchat_agent_bin pi)
+
+  jq --unbuffered -c '{type: "prompt", message: .text}' |
+    "$bin" --mode rpc \
+      --no-session \
+      --no-mcp \
+      --no-skills \
+      --no-prompt-templates \
+      --tools web_search \
+      -e "$here/pi-web-search.ts" \
+      --model "$model" \
+      --system-prompt "${OMARCHAT_SYSTEM_PROMPT:-}" |
+    jq --unbuffered -c '
+      if .type == "message_update" and .assistantMessageEvent.type == "text_delta" then
+        {type: "text", delta: .assistantMessageEvent.delta}
+      elif .type == "tool_execution_start" then
+        {type: "tool", name: .toolName, query: (.args.query // "")}
+      elif .type == "message_end" and .message.role == "assistant" then
+        if .message.stopReason == "error" then
+          {type: "error", text: (.message.errorMessage // "The model returned an error.")}
+        elif .message.stopReason == "stop" then
+          {type: "answer", text: ([.message.content[]? | select(.type == "text") | .text] | join(""))}
+        else empty end
+      elif .type == "response" and .success == false then
+        {type: "error", text: (.error // "Pi rejected the request.")}, {type: "done"}
+      elif .type == "agent_settled" then
+        {type: "done"}
+      else empty end'
+  ;;
+
+*)
+  echo "usage: pi check|models|default|paths|session <model>" >&2
+  exit 2
+  ;;
+esac
