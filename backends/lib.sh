@@ -7,7 +7,9 @@
 #   <agent> models           one JSON object per line: {"id": ..., "name": ...}
 #   <agent> default          the model to use until one is chosen, as {"id", "name"}
 #   <agent> paths            paths the session may write (token refreshes, ...)
-#   <agent> session <model>  run a chat: Omarchat events in, Omarchat events out
+#   <agent> encode           typed messages ({"text": ...} lines) -> agent input
+#   <agent> translate        agent output -> Omarchat events (<agent>.jq)
+#   <agent> session <model>  run a chat: encode | agent | translate
 #
 # Session input is one JSON object per line, {"text": "..."}. Session output is
 # one JSON object per line:

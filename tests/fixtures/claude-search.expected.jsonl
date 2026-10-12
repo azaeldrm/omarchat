@@ -1,0 +1,33 @@
+{"type":"tool","name":"WebSearch","query":"Hyprland latest release version"}
+{"type":"tool","name":"WebSearch","query":"Hyprland 0.57 release"}
+{"type":"text","delta":"The"}
+{"type":"text","delta":" latest Hyprland release"}
+{"type":"text","delta":" I found is v0.56."}
+{"type":"text","delta":"2 (August 5, "}
+{"type":"text","delta":"2026), and"}
+{"type":"text","delta":" 0.57 do"}
+{"type":"text","delta":"esn't appear to be out"}
+{"type":"text","delta":" yet ([Wikip"}
+{"type":"text","delta":"edia](https://en.w"}
+{"type":"text","delta":"ikipedia.org/w"}
+{"type":"text","delta":"iki/Hyprland"}
+{"type":"text","delta":"),"}
+{"type":"text","delta":" [GitHub "}
+{"type":"text","delta":"0.57 milestone]("}
+{"type":"text","delta":"https://github.com/hy"}
+{"type":"text","delta":"prwm/Hypr"}
+{"type":"text","delta":"land/milestone/12)"}
+{"type":"text","delta":")."}
+{"type":"text","delta":" I"}
+{"type":"text","delta":" couldn't check"}
+{"type":"text","delta":" the ["}
+{"type":"text","delta":"G"}
+{"type":"text","delta":"itHub releases page](https"}
+{"type":"text","delta":"://github.com/hypr"}
+{"type":"text","delta":"wm/Hyprland"}
+{"type":"text","delta":"/releases) directly, so"}
+{"type":"text","delta":" conf"}
+{"type":"text","delta":"irm there"}
+{"type":"text","delta":"."}
+{"type":"answer","text":"The latest Hyprland release I found is v0.56.2 (August 5, 2026), and 0.57 doesn't appear to be out yet ([Wikipedia](https://en.wikipedia.org/wiki/Hyprland), [GitHub 0.57 milestone](https://github.com/hyprwm/Hyprland/milestone/12)). I couldn't check the [GitHub releases page](https://github.com/hyprwm/Hyprland/releases) directly, so confirm there."}
+{"type":"done"}

@@ -21,6 +21,7 @@ set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 backends="$(dirname "$here")/backends"
+# shellcheck source=SCRIPTDIR/../backends/lib.sh
 source "$backends/lib.sh"
 
 IFS=$'\t' read -r agent model _ < <("$here/omarchat-model")
@@ -48,7 +49,7 @@ fi
 OMARCHAT_AGENT_BIN=$(omarchat_agent_bin "$agent")
 export OMARCHAT_AGENT_BIN
 
-export OMARCHAT_SYSTEM_PROMPT="You are Omarchat, a quick-answer assistant summoned from the \
+OMARCHAT_SYSTEM_PROMPT="You are Omarchat, a quick-answer assistant summoned from the \
 Omarchy desktop launcher (Arch Linux + Hyprland). The user wants a fast, direct \
 answer and will discard the conversation afterwards. Today is $(date '+%A, %B %-d, %Y').
 
@@ -57,6 +58,7 @@ answer and will discard the conversation afterwards. Today is $(date '+%A, %B %-
 - Search the web when the question depends on current or specific facts you are \
 not sure of. Prefer one search; only dig further when it falls short.
 - When you used the web, end with the sources as short Markdown links."
+export OMARCHAT_SYSTEM_PROMPT
 
 writable=()
 while IFS= read -r path; do

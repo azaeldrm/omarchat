@@ -1,0 +1,26 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  offline:
+    # The offline suites: manifest, shellcheck, event translation against
+    # recorded sessions, model selection, and the sandbox. No network, no
+    # agents, no Omarchy. The live suites (tests/run --live) run on a machine
+    # with logged-in agents.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq, shellcheck, and bubblewrap
+        run: sudo apt-get update && sudo apt-get install -y jq shellcheck bubblewrap
+
+      # Ubuntu 24.04 confines unprivileged user namespaces with AppArmor, which
+      # stops bubblewrap from building the sandbox the sessions run in.
+      - name: Allow bubblewrap's sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Run tests
+        run: tests/run

@@ -16,9 +16,11 @@ set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 backends="$(dirname "$here")/backends"
+# shellcheck source=SCRIPTDIR/../backends/lib.sh
 source "$backends/lib.sh"
 
-selection_file="$HOME/.config/omarchy/omarchat/model"
+# OMARCHAT_MODEL_FILE lets the tests use their own selection.
+selection_file="${OMARCHAT_MODEL_FILE:-$HOME/.config/omarchy/omarchat/model}"
 
 usable() {
   [[ -x $backends/$1 ]] && "$backends/$1" check >/dev/null 2>&1

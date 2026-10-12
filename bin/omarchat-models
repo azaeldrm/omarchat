@@ -18,6 +18,7 @@ set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 backends="$(dirname "$here")/backends"
+# shellcheck source=SCRIPTDIR/../backends/lib.sh
 source "$backends/lib.sh"
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/omarchat/models.json"
 unavailable="${XDG_CACHE_HOME:-$HOME/.cache}/omarchat/unavailable.json"

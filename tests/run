@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# tests/run [--live] [suite...]
+#
+# Runs the offline suites (tests/offline/), which need only bash, jq,
+# bubblewrap, and the shellcheck linter: no network, no logins, no Omarchy.
+# CI runs these.
+#
+# --live also runs tests/live/: real chats with each agent that's installed and
+# logged in here, including the attack tests that prove a session can only
+# search. They cost a little usage and need network. Pick models with
+# OMARCHAT_TEST_CLAUDE_MODEL and OMARCHAT_TEST_PI_MODEL.
+#
+# Name suites to run only those, e.g. `tests/run translate selection`.
+
+set -uo pipefail
+
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+live=false
+only=()
+for arg in "$@"; do
+  case "$arg" in
+  --live) live=true ;;
+  -h | --help)
+    sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  *) only+=("$arg") ;;
+  esac
+done
+
+suites=("$here"/offline/*.sh)
+[[ $live == "true" ]] && suites+=("$here"/live/*.sh)
+
+total_passed=0
+total_failed=0
+total_skipped=0
+broken=()
+results=$(mktemp)
+trap 'rm -f "$results"' EXIT
+
+for suite in "${suites[@]}"; do
+  name=$(basename "${suite%.sh}")
+  if ((${#only[@]})) && [[ " ${only[*]} " != *" $name "* ]]; then continue; fi
+  echo "$name"
+  : >"$results"
+  OMARCHAT_TEST_RESULTS="$results" bash "$suite"
+  status=$?
+  p=0 f=0 s=0
+  if read -r p f s <"$results"; then
+    total_passed=$((total_passed + p))
+    total_failed=$((total_failed + f))
+    total_skipped=$((total_skipped + s))
+  fi
+  # A suite that dies before finish() reports nothing; count it as failed.
+  if ((status != 0)) && ((f == 0)); then
+    broken+=("$name")
+    total_failed=$((total_failed + 1))
+  fi
+done
+
+echo
+echo "$total_passed passed, $total_failed failed, $total_skipped skipped"
+((${#broken[@]})) && echo "suites that stopped early: ${broken[*]}"
+((total_failed == 0))

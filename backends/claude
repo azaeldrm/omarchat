@@ -8,6 +8,7 @@
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+# shellcheck source=SCRIPTDIR/lib.sh
 source "$here/lib.sh"
 
 case "${1:-}" in
@@ -39,11 +40,20 @@ paths)
   printf '%s\n' "$HOME/.claude" "$HOME/.claude.json"
   ;;
 
+encode)
+  # A typed message, {"text": ...}, as Claude Code's stream-json input.
+  jq --unbuffered -c '{type: "user", message: {role: "user", content: .text}}'
+  ;;
+
+translate)
+  jq --unbuffered -c -f "$here/claude.jq"
+  ;;
+
 session)
   model=${2:?usage: claude session <model>}
   bin=$(omarchat_agent_bin claude)
 
-  jq --unbuffered -c '{type: "user", message: {role: "user", content: .text}}' |
+  "$0" encode |
     "$bin" -p \
       --input-format stream-json \
       --output-format stream-json \
@@ -57,21 +67,11 @@ session)
       --no-session-persistence \
       --disable-slash-commands \
       --system-prompt "${OMARCHAT_SYSTEM_PROMPT:-}" |
-    jq --unbuffered -c '
-      if .type == "stream_event" and .event.type == "content_block_delta" and .event.delta.type == "text_delta" then
-        {type: "text", delta: .event.delta.text}
-      elif .type == "assistant" then
-        .message.content[]? | select(.type == "tool_use" or .type == "server_tool_use")
-        | {type: "tool", name: .name, query: (.input.query // "")}
-      elif .type == "result" then
-        (if .is_error then {type: "error", text: (.result // "Something went wrong.")}
-         else {type: "answer", text: (.result // "")} end),
-        {type: "done"}
-      else empty end'
+    "$0" translate
   ;;
 
 *)
-  echo "usage: claude check|models|default|paths|session <model>" >&2
+  echo "usage: claude check|models|default|paths|encode|translate|session <model>" >&2
   exit 2
   ;;
 esac

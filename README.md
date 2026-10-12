@@ -161,6 +161,32 @@ loaded QML until it restarts.
 - **Nothing opens:** check `omarchy plugin list` shows `omarchat` enabled, then
   look for errors with `quickshell log -p /usr/share/omarchy/shell -t 50`.
 
+## Development
+
+```bash
+tests/run           # offline: no network, no logins (what CI runs)
+tests/run --live    # also real chats with each logged-in agent
+tests/run sandbox   # just the named suites
+```
+
+The offline suites need bash, jq, bubblewrap, and shellcheck. They check the
+manifest the way `omarchy plugin validate` does, lint every script, replay
+recorded agent sessions through each backend's translation
+(`tests/fixtures/`), and test model selection and the sandbox with stand-in
+backends. They make no model calls.
+
+The live suites make a few cheap model calls. They chat with each agent
+through the real sandbox, and run the attack tests that prove a session can
+only search: write a file, run a command, read a local file, fetch a local
+server, and type a raw Pi command as a message. They check what happened (no
+files, no canary in answers, no local requests, only search tools), never the
+model's wording. Choose models with `OMARCHAT_TEST_CLAUDE_MODEL` and
+`OMARCHAT_TEST_PI_MODEL`.
+
+To add an agent, give it a backend in `backends/` (see `backends/lib.sh`),
+record a session for `tests/fixtures/` with a scrub filter, and make sure
+`tests/run --live` passes.
+
 ## License
 
 MIT

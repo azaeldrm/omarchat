@@ -11,6 +11,7 @@
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+# shellcheck source=SCRIPTDIR/lib.sh
 source "$here/lib.sh"
 
 case "${1:-}" in
@@ -65,11 +66,21 @@ paths)
   printf '%s\n' "$HOME/.pi/agent"
   ;;
 
+encode)
+  # A typed message, {"text": ...}, as a Pi RPC prompt. Only ever a prompt:
+  # whatever the text says, it can't become another RPC command (bash, ...).
+  jq --unbuffered -c '{type: "prompt", message: .text}'
+  ;;
+
+translate)
+  jq --unbuffered -c -f "$here/pi.jq"
+  ;;
+
 session)
   model=${2:?usage: pi session <model>}
   bin=$(omarchat_agent_bin pi)
 
-  jq --unbuffered -c '{type: "prompt", message: .text}' |
+  "$0" encode |
     "$bin" --mode rpc \
       --no-session \
       --no-mcp \
@@ -79,26 +90,11 @@ session)
       -e "$here/pi-web-search.ts" \
       --model "$model" \
       --system-prompt "${OMARCHAT_SYSTEM_PROMPT:-}" |
-    jq --unbuffered -c '
-      if .type == "message_update" and .assistantMessageEvent.type == "text_delta" then
-        {type: "text", delta: .assistantMessageEvent.delta}
-      elif .type == "tool_execution_start" then
-        {type: "tool", name: .toolName, query: (.args.query // "")}
-      elif .type == "message_end" and .message.role == "assistant" then
-        if .message.stopReason == "error" then
-          {type: "error", text: (.message.errorMessage // "The model returned an error.")}
-        elif .message.stopReason == "stop" then
-          {type: "answer", text: ([.message.content[]? | select(.type == "text") | .text] | join(""))}
-        else empty end
-      elif .type == "response" and .success == false then
-        {type: "error", text: (.error // "Pi rejected the request.")}, {type: "done"}
-      elif .type == "agent_settled" then
-        {type: "done"}
-      else empty end'
+    "$0" translate
   ;;
 
 *)
-  echo "usage: pi check|models|default|paths|session <model>" >&2
+  echo "usage: pi check|models|default|paths|encode|translate|session <model>" >&2
   exit 2
   ;;
 esac
