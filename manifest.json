@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "omarchat",
+  "id": "azaeldrm.omarchat",
   "name": "Omarchat",
   "version": "0.1.0",
   "author": "Azael del Rosario",
   "license": "MIT",
-  "description": "Ephemeral, search-only Claude chat in a menu-styled card",
+  "description": "A quick, throwaway AI chat that can search the web and nothing else. Works with Claude Code, Pi, Codex, and opencode.",
   "kinds": [
     "overlay"
   ],

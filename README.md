@@ -44,7 +44,7 @@ first):
 
 ```lua
 hl.unbind("SUPER + ALT + SPACE")
-o.bind("SUPER + ALT + SPACE", "Omarchat", "omarchy-shell shell toggle omarchat '{}'")
+o.bind("SUPER + ALT + SPACE", "Omarchat", "omarchy-shell shell toggle azaeldrm.omarchat '{}'")
 ```
 
 Hyprland reloads on save; `hyprctl configerrors` should print nothing.
@@ -98,8 +98,8 @@ From scripts, you can open the card with a question already asked, or straight
 into settings:
 
 ```bash
-omarchy-shell shell summon omarchat '{"prompt":"What is the latest Hyprland release?"}'
-omarchy-shell shell summon omarchat '{"settings":true}'
+omarchy-shell shell summon azaeldrm.omarchat '{"prompt":"What is the latest Hyprland release?"}'
+omarchy-shell shell summon azaeldrm.omarchat '{"settings":true}'
 ```
 
 ## How it works
@@ -168,12 +168,20 @@ for higher limits.
 ## Update and remove
 
 ```bash
-omarchy plugin update omarchat
-omarchy plugin remove omarchat
+omarchy plugin update azaeldrm.omarchat
+omarchy plugin remove azaeldrm.omarchat
 ```
 
 After an update, run `omarchy restart shell`. The shell keeps the previously
 loaded QML until it restarts.
+
+Installed it while its id was still `omarchat`? Reinstall under the new id,
+then change `omarchat` to `azaeldrm.omarchat` in your keybinding and menu rows:
+
+```bash
+omarchy plugin remove omarchat
+omarchy plugin add https://github.com/azaeldrm/omarchat.git --enable
+```
 
 ## Troubleshooting
 

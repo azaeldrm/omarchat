@@ -9,9 +9,9 @@ import qs.Ui
 // chat. Not keepLoaded on purpose — hiding the plugin destroys this instance,
 // and with it the ChatView's session process, so every summon starts fresh.
 //
-//   omarchy-shell shell toggle omarchat '{}'
-//   omarchy-shell shell summon omarchat '{"prompt":"What is Hyprland?"}'
-//   omarchy-shell shell summon omarchat '{"settings":true}'
+//   omarchy-shell shell toggle azaeldrm.omarchat '{}'
+//   omarchy-shell shell summon azaeldrm.omarchat '{"prompt":"What is Hyprland?"}'
+//   omarchy-shell shell summon azaeldrm.omarchat '{"settings":true}'
 Item {
   id: root
 
@@ -142,7 +142,7 @@ Item {
   function dismiss() {
     root.opened = false
     if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "omarchat")
+      root.shell.hide((root.manifest && root.manifest.id) || "azaeldrm.omarchat")
   }
 
   PanelWindow {
