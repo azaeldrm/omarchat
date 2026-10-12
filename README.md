@@ -22,9 +22,8 @@ but it **cannot** touch your system: no files, no commands, no local network
   - [Codex](https://developers.openai.com/codex): `omarchy default agent codex`,
     then `codex login`. Settings lists the models your plan offers.
   - [opencode](https://opencode.ai): `omarchy default agent opencode`, then
-    `opencode auth login` for a provider. Settings lists the models of every
-    provider you're logged in to. opencode's free (Zen) models aren't offered:
-    they refuse to run with tools switched off.
+    `opencode auth login`. Its free Zen models aren't listed: they refuse to
+    run with tools switched off.
 - `bubblewrap`, for the sandbox: `omarchy pkg add bubblewrap`
 
 No agent yet? Open Omarchat anyway. It lists the agents it works with and why
@@ -88,7 +87,8 @@ A few things to know about the lists:
 
 - **Pi and opencode list their whole catalog** for every provider you're
   logged in to, and some plans don't include every model. For example, a
-  ChatGPT-based Codex login refuses older models. When a model is refused like that, Omarchat greys
+  ChatGPT-based Codex login refuses older models. When a model is refused like
+  that, Omarchat greys
   it out in settings with the reason for a week, in case your plan changes.
 - **Local servers list the models they have loaded** when the list refreshes,
   so loading a different model on your server changes the list. The first
@@ -126,9 +126,8 @@ whichever agent answers:
   [Exa](https://exa.ai)'s hosted search. Codex keeps its web search, which runs
   on OpenAI's side, and has every other tool switched off: shell, command
   execution, apps, browsers, computer use, plugins, skills, MCP servers, hooks,
-  and image generation. opencode runs as a single agent whose every permission
-  is denied except `websearch`, its own Exa search, with no plugins, MCP
-  servers, or project config, and its other agents disabled. None of these search tools takes a URL from your
+  and image generation. opencode keeps its `websearch` (also Exa), with every
+  other permission denied. None of these search tools takes a URL from your
   machine, so the model can't reach localhost or your network. Page-fetching
   tools are left out on purpose: they fetch from your machine, which would put
   localhost and LAN services in reach.
@@ -136,13 +135,12 @@ whichever agent answers:
   private tmpfs, and `$HOME` is empty: only Omarchat and the agent's own
   program come back, read-only, plus the agent's state, writable so your login
   can refresh (`~/.claude` and `~/.claude.json`, `~/.pi/agent`, `~/.codex`,
-  and opencode's `auth.json` and model catalog).
-  Your documents, keys, and other configs aren't there to read, whatever tools
-  an agent turns out to have. The sandbox dies with the card.
+  opencode's `auth.json`). Your documents, keys, and other configs aren't there
+  to read, whatever tools an agent turns out to have. The sandbox dies with the
+  card.
 - **Nothing is persisted.** Sessions run without saving transcripts
-  (`--no-session-persistence`, `--no-session`, ephemeral Codex threads).
-  opencode always keeps sessions in a database, so it gets a fresh one in the
-  sandbox's empty `$HOME`, gone with the card.
+  (`--no-session-persistence`, `--no-session`, ephemeral Codex threads, and a
+  throwaway opencode database inside the sandbox).
 
 Codex keeps a few tools no setting removes: `view_image` (reads images from
 disk), `apply_patch` (edits files), code mode (`functions.exec`, scripts that
@@ -174,14 +172,6 @@ omarchy plugin remove azaeldrm.omarchat
 
 After an update, run `omarchy restart shell`. The shell keeps the previously
 loaded QML until it restarts.
-
-Installed it while its id was still `omarchat`? Reinstall under the new id,
-then change `omarchat` to `azaeldrm.omarchat` in your keybinding and menu rows:
-
-```bash
-omarchy plugin remove omarchat
-omarchy plugin add https://github.com/azaeldrm/omarchat.git --enable
-```
 
 ## Troubleshooting
 
