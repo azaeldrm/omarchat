@@ -14,6 +14,13 @@ for field in id name version kinds entryPoints; do
   assert_eq "has required field '$field'" "true" "$(jq --arg f "$field" 'has($f)' "$manifest")"
 done
 
+# Releases are tagged v<version>; the marketplace shows the manifest's.
+version=$(jq -r '.version' "$manifest")
+if [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then ok "version '$version' is X.Y.Z"; else fail "version '$version' is X.Y.Z"; fi
+if [[ ${GITHUB_REF_TYPE:-} == tag ]]; then
+  assert_eq "the release tag matches the manifest's version" "v$version" "$GITHUB_REF_NAME"
+fi
+
 id=$(jq -r '.id' "$manifest")
 if [[ $id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && $id != *..* && $id != omarchy.* ]]; then
   ok "id '$id' is valid and not in the reserved omarchy.* namespace"

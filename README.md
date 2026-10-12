@@ -213,6 +213,10 @@ To add an agent, give it a backend in `backends/` (see `backends/lib.sh`),
 record a session for `tests/fixtures/` with a scrub filter, and make sure
 `tests/run --live` passes.
 
+To release, bump `version` in `manifest.json`, then tag `v<version>` and
+publish a GitHub release with the notes. CI checks the tag matches the
+manifest.
+
 ## License
 
 MIT

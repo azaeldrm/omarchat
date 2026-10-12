@@ -24,6 +24,11 @@
 # the order Omarchat falls back through when nothing usable is chosen.
 omarchat_agents=("claude:Claude Code" "pi:Pi" "codex:Codex" "opencode:OpenCode")
 
+# Omarchat's version, from manifest.json: what agents are told the client is.
+omarchat_version() {
+  jq -r '.version' "$(dirname "${BASH_SOURCE[0]}")/../manifest.json"
+}
+
 omarchat_agent_name() {
   local entry
   for entry in "${omarchat_agents[@]}"; do

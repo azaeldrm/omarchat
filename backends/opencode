@@ -143,7 +143,11 @@ session)
   trap 'exec 3>&-; kill "$agent_pid" 2>/dev/null; rm -rf "$workdir"' EXIT
 
   # No file system or terminal for the agent to borrow from the client.
-  rpc 0 initialize '{"protocolVersion":1,"clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false},"terminal":false},"clientInfo":{"name":"omarchat","title":"Omarchat","version":"0.1.0"}}' >&3
+  rpc 0 initialize "$(jq -nc --arg version "$(omarchat_version)" '{
+    protocolVersion: 1,
+    clientCapabilities: {fs: {readTextFile: false, writeTextFile: false}, terminal: false},
+    clientInfo: {name: "omarchat", title: "Omarchat", version: $version}
+  }')" >&3
   await 0 >/dev/null
   rpc 1 session/new '{"cwd":"/tmp","mcpServers":[]}' >&3
   started=$(await 1)

@@ -46,7 +46,7 @@ start_server() {
   server_pid=$!
   exec 3>"$workdir/in" 4<"$workdir/out"
   trap 'exec 3>&-; kill "$server_pid" 2>/dev/null; rm -rf "$workdir"' EXIT
-  rpc 0 initialize '{"clientInfo":{"name":"omarchat","title":"Omarchat","version":"0.1.0"}}' >&3
+  rpc 0 initialize "$(jq -nc --arg version "$(omarchat_version)" '{clientInfo: {name: "omarchat", title: "Omarchat", version: $version}}')" >&3
   await 0 >/dev/null
   echo '{"method":"initialized","params":{}}' >&3
 }
