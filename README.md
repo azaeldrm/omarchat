@@ -4,6 +4,8 @@ A quick, throwaway AI chat for [Omarchy](https://omarchy.org). Press a shortcut,
 ask a question, get an answer, and press Esc. The conversation is gone: nothing
 is saved.
 
+![Omarchat answering a question with a cited source](preview.png)
+
 Omarchat opens as a card in the same style as the Omarchy menu and follows your
 theme. It works with the coding agents you already use: pick any model they
 offer, including local ones. The model can search the web and cite its sources,
