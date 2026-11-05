@@ -73,6 +73,15 @@ assert_eq "a saved choice that becomes unusable falls back, unsaved" \
   "$(STUB_PI_CHECK="Not logged in" "$model")|$(cat "$OMARCHAT_MODEL_FILE")"
 "$model" set ghost g/1 "Ghost"
 assert_eq "a saved agent Omarchat has no backend for falls back" "claude${tab}c1${tab}Claude One" "$("$model")"
+label_file="$XDG_CACHE_HOME/omarchat/label"
+assert_eq "--probe prints the selection, then the label" "claude${tab}c1${tab}Claude One|Claude One · Claude Code" \
+  "$("$model" --probe | paste -sd '|')"
+assert_eq "--probe saves the label for the next open" "Claude One · Claude Code" "$(cat "$label_file")"
+"$model" set pi p/1 "Pi One"
+assert_eq "set saves the new label" "Pi One · Pi" "$(cat "$label_file")"
+STUB_CLAUDE_CHECK="Not logged in" STUB_PI_CHECK="Not logged in" STUB_CODEX_CHECK="Not logged in" STUB_OPENCODE_CHECK="Not logged in" \
+  "$model" --probe >/dev/null
+assert_eq "no usable agent: the saved label is cleared" "" "$(cat "$label_file")"
 "$model" set codex gpt-6.1-sol "GPT-6.1-Sol"
 assert_eq "a saved large model falls back" "claude${tab}c1${tab}Claude One" "$("$model")"
 

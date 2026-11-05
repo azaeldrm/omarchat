@@ -37,6 +37,10 @@ Item {
   // shows SetupView instead of a chat that could only fail.
   property bool agentKnown: false
   property bool needsSetup: false
+  // "<model> · <agent>" for the header. Opening starts from the label the
+  // last check saved, so the card's first frame is complete; the check then
+  // corrects it in the rare case something changed.
+  property string modelLabel: ""
 
   // Shares the [menu] surface tokens, so themes that style the menu style
   // this card too and the two read as one surface.
@@ -69,7 +73,12 @@ Item {
     var payload = ({})
     try { payload = JSON.parse(payloadJson || "{}") } catch (e) { payload = ({}) }
     root.prompt = String(payload.prompt || "").trim()
-    root.agentKnown = false
+    var saved = ""
+    try { saved = String(labelFile.text() || "").trim() } catch (e) { saved = "" }
+    root.modelLabel = saved
+    root.needsSetup = false
+    // A saved label means an agent worked last time: show the chat at once.
+    root.agentKnown = saved !== ""
     root.opened = true
     agentProbe.running = true
     if (payload.settings) root.openSettings()
@@ -94,11 +103,23 @@ Item {
     Qt.callLater(function() { root.chatAlive = true })
   }
 
+  FileView {
+    id: labelFile
+    path: (Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache") + "/omarchat/label"
+    blockLoading: true
+    watchChanges: false
+    printErrors: false
+  }
+
+  // The selection line ("none" when no agent is usable), then the label.
   Process {
     id: agentProbe
-    command: ["bash", root.pluginDir + "/bin/omarchat-model"]
+    command: ["bash", root.pluginDir + "/bin/omarchat-model", "--probe"]
     stdout: SplitParser {
-      onRead: function(line) { root.needsSetup = line.split("\t")[0] === "none" }
+      onRead: function(line) {
+        if (line.indexOf("\t") >= 0) root.needsSetup = line.split("\t")[0] === "none"
+        else root.modelLabel = root.needsSetup ? "" : line.trim()
+      }
     }
     onExited: root.agentKnown = true
   }
@@ -127,6 +148,7 @@ Item {
     onExited: function(exitCode) {
       root.settingsOpen = false
       if (exitCode !== 0) return
+      agentProbe.running = true
       if (!root.started) {
         root.restartChat()
       } else if (chatLoader.item) {
@@ -229,6 +251,7 @@ Item {
             selectedBorderSpec: root.selectedBorderSpec
             sessionScript: root.pluginDir + "/bin/omarchat-session"
             modelScript: root.pluginDir + "/bin/omarchat-model"
+            labelSource: root.modelLabel
             foreground: root.foreground
             background: root.background
             selectedBackground: root.selectedBackground

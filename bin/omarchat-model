@@ -3,6 +3,7 @@
 # omarchat-model                              agent, model, and name, tab-separated;
 #                                             agent "none" when no agent is usable
 # omarchat-model --label                      "<model name> · <agent name>", for the header
+# omarchat-model --probe                      both of the above, one per line
 # omarchat-model set <agent> <model> [name]   choose what the next chat uses
 # omarchat-model unavailable <reason>         remember the current model was refused
 #
@@ -51,18 +52,41 @@ current() {
   fi
 }
 
+# The last label, for the card to show the moment it opens; --probe then
+# confirms it. Empty when no agent is usable.
+label_file="${XDG_CACHE_HOME:-$HOME/.cache}/omarchat/label"
+
+save_label() {
+  mkdir -p "$(dirname "$label_file")"
+  printf '%s\n' "$1" >"$label_file"
+}
+
+# The header label for a current() line; saved for the next open.
+label() {
+  local agent model name
+  IFS=$'\t' read -r agent model name <<<"$1"
+  if [[ $agent == "none" ]]; then
+    save_label ""
+    echo "No agent set up"
+  else
+    save_label "${name:-$model} · $(omarchat_agent_name "$agent")"
+    echo "${name:-$model} · $(omarchat_agent_name "$agent")"
+  fi
+}
+
 case "${1:-}" in
 "")
   current
   ;;
 
 --label)
-  IFS=$'\t' read -r agent model name < <(current)
-  if [[ $agent == "none" ]]; then
-    echo "No agent set up"
-  else
-    echo "${name:-$model} · $(omarchat_agent_name "$agent")"
-  fi
+  label "$(current)"
+  ;;
+
+--probe)
+  line=$(current)
+  echo "$line"
+  label "$line"
   ;;
 
 set)
@@ -71,6 +95,7 @@ set)
   name=${4:-$model}
   mkdir -p "$(dirname "$selection_file")"
   printf '%s\t%s\t%s\n' "$agent" "$model" "$name" >"$selection_file"
+  save_label "$name · $(omarchat_agent_name "$agent")"
   ;;
 
 unavailable)
@@ -87,7 +112,7 @@ unavailable)
   ;;
 
 *)
-  echo "usage: omarchat-model [--label | set <agent> <model> [name] | unavailable <reason>]" >&2
+  echo "usage: omarchat-model [--label | --probe | set <agent> <model> [name] | unavailable <reason>]" >&2
   exit 2
   ;;
 esac

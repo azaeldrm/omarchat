@@ -212,17 +212,10 @@ Item {
     onTriggered: if (chat.status === flashTimer.text) chat.status = ""
   }
 
-  // The header names the model and agent this session was started with.
-  Process {
-    id: modelRead
-    command: ["bash", chat.modelScript, "--label"]
-    running: true
-    stdout: SplitParser {
-      onRead: function(line) {
-        if (!chat.modelName && line.trim()) chat.modelName = line.trim()
-      }
-    }
-  }
+  // The header names the model and agent this session was started with: it
+  // follows the card's label until the first question, then stays put.
+  property string labelSource: ""
+  onLabelSourceChanged: if (!chat.started) chat.modelName = chat.labelSource
 
   // Shared by the composer, which sees keys first, and the view itself.
   function handleKey(event) {
@@ -459,5 +452,8 @@ Item {
   // Take focus only when shown: a chat loaded under an open settings view
   // (opened from the menu's Settings row) must not steal its keys. The host
   // hands focus back with focusInput() when settings close.
-  Component.onCompleted: if (chat.visible) input.forceActiveFocus()
+  Component.onCompleted: {
+    chat.modelName = chat.labelSource
+    if (chat.visible) input.forceActiveFocus()
+  }
 }
