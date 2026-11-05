@@ -43,7 +43,8 @@ fallback() {
 current() {
   local line=""
   [[ -s $selection_file ]] && IFS= read -r line <"$selection_file"
-  if [[ -n $line ]] && usable "${line%%$'\t'*}"; then
+  # A saved large model (see lib.sh) is no longer offered; fall back.
+  if [[ -n $line ]] && ! omarchat_is_large "$line" && usable "${line%%$'\t'*}"; then
     echo "$line"
   else
     fallback

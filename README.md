@@ -6,7 +6,8 @@ ask a question, get an answer with its sources, and press Esc. Nothing is kept.
 ![Omarchat answering a question with a cited source](preview.png)
 
 - **Your agents and models.** Works with Claude Code, Pi, Codex, and opencode,
-  and lists every model they offer you, including local ones through Pi.
+  with the quick models they offer you, including local ones through Pi. The
+  largest (Claude Opus and Fable, GPT Sol and Astra) are left out.
 - **Search-only.** The model can search the web and nothing else: no files, no
   commands, no local network.
 - **Throwaway.** Close the card and the conversation is gone.

@@ -57,7 +57,7 @@ list_models() {
   start_server 2>/dev/null
   rpc 1 model/list '{"limit":100,"includeHidden":false}' >&3
   await 1 | jq -c '.result.data[]? | select(.hidden | not)
-    | {id: .model, name: (.displayName // .model), default: (.isDefault // false)}'
+    | {id: .model, name: (.displayName // .model), default: (.isDefault // false)}' | omarchat_drop_large
 }
 
 # rpc <id> <method> <params-json>

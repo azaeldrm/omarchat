@@ -64,7 +64,7 @@ list_models() {
     jq -c --argjson zen "$(jq 'has("opencode")' "$auth_file" 2>/dev/null || echo false)" '
       select(.capabilities.toolcall != false and .status != "deprecated")
       | select(.providerID != "opencode" or $zen)
-      | {id: "\(.providerID)/\(.id)", name: (.name // .id), provider: .providerID, released: (.release_date // "")}'
+      | {id: "\(.providerID)/\(.id)", name: (.name // .id), provider: .providerID, released: (.release_date // "")}' | omarchat_drop_large
 }
 
 # rpc <id> <method> <params-json>

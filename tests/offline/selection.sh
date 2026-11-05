@@ -73,6 +73,15 @@ assert_eq "a saved choice that becomes unusable falls back, unsaved" \
   "$(STUB_PI_CHECK="Not logged in" "$model")|$(cat "$OMARCHAT_MODEL_FILE")"
 "$model" set ghost g/1 "Ghost"
 assert_eq "a saved agent Omarchat has no backend for falls back" "claude${tab}c1${tab}Claude One" "$("$model")"
+"$model" set codex gpt-6.1-sol "GPT-6.1-Sol"
+assert_eq "a saved large model falls back" "claude${tab}c1${tab}Claude One" "$("$model")"
+
+# Large models are left out by name, not by look-alike words.
+# shellcheck source=SCRIPTDIR/../../backends/lib.sh
+source "$plugin/backends/lib.sh"
+assert_eq "large models are dropped, others kept" '["claude-haiku-5-5","gpt-6.1-terra","openai/gpt-6-luna","solar-mini","x/console"]' \
+  "$(printf '%s\n' claude-haiku-5-5 claude-opus-5-5 claude-fable-5-1 gpt-6.1-terra gpt-6.1-sol openai/gpt-6-astra \
+      openai/gpt-6-luna solar-mini x/console | jq -Rc '{id: ., name: .}' | omarchat_drop_large | jq -sc 'map(.id)')"
 reset
 
 # The model list for settings.

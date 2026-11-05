@@ -29,6 +29,21 @@ omarchat_version() {
   jq -r '.version' "$(dirname "${BASH_SOURCE[0]}")/../manifest.json"
 }
 
+# Omarchat is for quick questions, so it leaves out each provider's largest
+# models (Claude Opus and Fable, OpenAI's Sol and Astra) wherever an agent
+# offers them. None of the agents reports a model's size, so this goes by name.
+omarchat_large_model='(^|[^a-z])(opus|fable|sol|astra)([^a-z]|$)'
+
+# Model lines ({"id", "name", ...}) on stdin, minus the large ones.
+omarchat_drop_large() {
+  jq -c --arg re "$omarchat_large_model" 'select([.id, .name] | map(. // "" | test($re; "i")) | any | not)'
+}
+
+# True if a model id or name is one of the large ones.
+omarchat_is_large() {
+  grep -qiE "$omarchat_large_model" <<<"$1"
+}
+
 omarchat_agent_name() {
   local entry
   for entry in "${omarchat_agents[@]}"; do

@@ -150,7 +150,9 @@ Item {
     visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
-    WlrLayershell.namespace: "omarchat"
+    // Omarchy's layer rule for keyboard-driven panels turns off Hyprland's
+    // layer fade for this namespace, so the card pops in like the menu.
+    WlrLayershell.namespace: "omarchy-keyboard-panel"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore

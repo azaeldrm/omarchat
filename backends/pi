@@ -44,7 +44,7 @@ models)
         id: "\(.provider)/\(.id)",
         name: (if (.name // "") != "" then .name else .id end),
         provider: .provider
-      }' <<<"$line"
+      }' <<<"$line" | omarchat_drop_large
       break
     fi
   done
