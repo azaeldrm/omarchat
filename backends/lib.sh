@@ -63,6 +63,7 @@ omarchat_agent_bin() {
     return
   fi
   bin=$(mise which "$name" 2>/dev/null) || bin=$(command -v "$name" 2>/dev/null) || return 1
-  grep -q '^mise use -g' "$bin" 2>/dev/null && return 1
+  # The stubs are short scripts; agents are large binaries, so read just the start.
+  head -c 4096 "$bin" 2>/dev/null | grep -qa '^mise use -g' && return 1
   echo "$bin"
 }

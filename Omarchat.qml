@@ -73,8 +73,9 @@ Item {
     root.opened = true
     agentProbe.running = true
     if (payload.settings) root.openSettings()
-    // Keep the model cache current even for people who never open settings:
-    // a newly installed or logged-in agent shows up on its own.
+    // Keep the model cache current even for people who never open settings,
+    // so a newly installed or logged-in agent shows up on its own. Hourly at
+    // most: listing models starts the agents, competing with the chat.
     if (!modelsRefresh.running) modelsRefresh.running = true
   }
 
@@ -104,7 +105,7 @@ Item {
 
   Process {
     id: modelsRefresh
-    command: ["bash", root.pluginDir + "/bin/omarchat-models"]
+    command: ["bash", root.pluginDir + "/bin/omarchat-models", "--if-older", "3600"]
   }
 
   Process {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchat-models [--cached]
+# omarchat-models [--cached | --if-older <seconds>]
 #
 # Every agent Omarchat supports, whether it can be used here, and the models
 # it offers, as one JSON document for the settings view:
@@ -11,6 +11,9 @@
 #
 # The result is cached in ~/.cache/omarchat/models.json; --cached prints the
 # cache when there is one, so the view can open instantly and refresh after.
+# --if-older rebuilds the cache only when it's older than that (printing
+# nothing otherwise): listing every agent's models starts several of them,
+# which shouldn't slow down every chat.
 # Models a chat found refused (omarchat-model unavailable) carry an
 # "unavailable" reason for a week, in case the plan changes.
 
@@ -33,6 +36,11 @@ print_with_unavailable() {
 
 if [[ ${1:-} == "--cached" && -s $cache ]]; then
   print_with_unavailable
+  exit 0
+fi
+
+if [[ ${1:-} == "--if-older" && -s $cache ]] &&
+  (($(date +%s) - $(stat -c %Y "$cache") < ${2:?usage: omarchat-models --if-older <seconds>})); then
   exit 0
 fi
 

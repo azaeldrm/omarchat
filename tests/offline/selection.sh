@@ -110,5 +110,8 @@ assert_eq "a mark older than a week is ignored" "null" \
   "$("$models" --cached | jq -c '.agents[] | select(.id == "claude") | .models[] | select(.id == "c2") | .unavailable')"
 assert_eq "--cached without a cache builds one" "true" \
   "$(rm -rf "$XDG_CACHE_HOME"; "$models" --cached | jq '.agents | length == 4')"
+assert_eq "--if-older skips a fresh cache" "" "$("$models" --if-older 3600)"
+touch -d '2 hours ago' "$XDG_CACHE_HOME/omarchat/models.json"
+assert_eq "--if-older rebuilds a stale cache" "true" "$("$models" --if-older 3600 | jq '.agents | length == 4')"
 
 finish
