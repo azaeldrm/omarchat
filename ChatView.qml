@@ -4,17 +4,10 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// Omarchat: one ephemeral LLM conversation.
-//
-// The view owns one `omarchat-session` process for its whole life. Messages go
-// in as {"text": ...} lines on stdin and Omarchat events stream back on stdout
-// (backends/lib.sh), whichever agent answers. Hosts load this view only while
-// the chat is open, so tearing it down kills the process and the conversation.
 Item {
   id: chat
 
   property string initialPrompt: ""
-  // Hosts point these at the plugin's bin/; the defaults resolve on PATH.
   property string sessionScript: "omarchat-session"
   property string modelScript: "omarchat-model"
   property color foreground: "white"
@@ -23,15 +16,10 @@ Item {
   property color selectedText: "white"
   property string fontFamily: Style.font.menuFamily
   property int cornerRadius: Style.cornerRadius
-  // The menu's selected-row border, so the question bubble reads like a
-  // selected row under any theme that styles one.
   property var selectedBorderSpec: Border.none()
-  // Text selection and the composer use the kit's input tokens (Ui/TextField).
   readonly property color selectionTint: Style.selectionFillFor(chat.foreground, Color.accent)
 
   readonly property string title: "Omarchat" + (chat.modelName ? " · " + chat.modelName : "")
-  // Opened without a question (the standalone card), the view starts as just
-  // the composer; hosts size the card from these until the first message.
   readonly property bool started: messages.count > 0
   readonly property int composerBlockHeight: composer.height + Style.spacing.md + hints.height
 
@@ -49,6 +37,7 @@ Item {
   ListModel { id: messages }
 
   function send(text) {
+    // Show a question with an empty answer under it, and send it to the session.
     var prompt = String(text || "").trim()
     if (!prompt || chat.busy || chat.ended) return false
 
@@ -64,6 +53,7 @@ Item {
   }
 
   function setAnswer(text, role) {
+    // Replace the current answer's text, and its role if given.
     if (chat.answerIndex < 0 || chat.answerIndex >= messages.count) return
     messages.setProperty(chat.answerIndex, "text", text)
     messages.setProperty(chat.answerIndex, "html", chat.renderMarkdown(text))
@@ -72,25 +62,19 @@ Item {
   }
 
   function appendAnswer(text) {
+    // Add streamed text to the current answer.
     if (chat.answerIndex < 0 || chat.answerIndex >= messages.count) return
     var current = messages.get(chat.answerIndex).text
-    // Text written before a tool call ("Let me look that up") and the answer
-    // after it arrive as separate blocks; keep them from running together.
     if (chat.breakBeforeText && current) current += "\n\n"
     chat.breakBeforeText = false
     chat.setAnswer(current + text)
   }
 
-  // Markdown links render in a fixed blue that ignores linkColor and the
-  // palette, and inline HTML in Markdown breaks list items. So render the
-  // Markdown once off-screen, export it as HTML, and recolor the links there.
   function renderMarkdown(text) {
+    // Markdown to HTML, with links in the theme's colors.
     markdownRenderer.textFormat = TextEdit.MarkdownText
     markdownRenderer.text = String(text || "")
     markdownRenderer.textFormat = TextEdit.RichText
-    // The export marks its fragment bounds with comments; when the answer
-    // opens with a list, the start marker lands inside the first item and
-    // the re-import drops the whole list's bullets and indent.
     return markdownRenderer.getFormattedText(0, markdownRenderer.length)
       .replace(/<!--(Start|End)Fragment-->/g, "")
       .replace(/#0000ff/gi, String(chat.selectedText))
@@ -104,6 +88,7 @@ Item {
   }
 
   function lastAnswer() {
+    // The text of the most recent non-empty answer.
     for (var i = messages.count - 1; i >= 0; i--) {
       var row = messages.get(i)
       if (row.role === "assistant" && row.text) return row.text
@@ -123,29 +108,29 @@ Item {
   }
 
   function flash(text) {
+    // Show a status message briefly.
     flashTimer.text = text
     chat.status = text
     flashTimer.restart()
   }
 
-  // Follow the stream only while the reader is already at the bottom, so
-  // scrolling up to reread an earlier answer isn't yanked away mid-stream.
   function followEnd(force) {
+    // Scroll to the end, unless the reader scrolled up (force scrolls anyway).
     if (!force && !conversation.atYEnd) return
     Qt.callLater(function() { conversation.positionViewAtEnd() })
   }
 
   function toolStatus(name, query) {
+    // The status line for a tool the model is using.
     if (name === "WebSearch" || name === "web_search")
       return query ? "Searching “" + query + "”" : "Searching the web…"
     return "Working…"
   }
 
-  // Refusals that won't change by retrying (the model isn't on this plan or
-  // account). Recorded so settings can grey the model out with the reason.
   readonly property var accessErrors: /not supported|not available|does not have access|no access|model_not_found|does not exist/i
 
   function handleEvent(line) {
+    // Apply one session event (lib.sh's event format) to the conversation.
     var event
     try { event = JSON.parse(line) } catch (e) { return }
 
@@ -189,8 +174,6 @@ Item {
       chat.ended = true
       chat.status = ""
       if (!chat.busy) {
-        // Died before the first question (missing dependency, no login):
-        // say why instead of leaving a card that silently ignores Enter.
         if (!chat.started && chat.stderrText.trim()) {
           messages.append({ role: "error", text: "", html: "" })
           chat.answerIndex = messages.count - 1
@@ -212,13 +195,11 @@ Item {
     onTriggered: if (chat.status === flashTimer.text) chat.status = ""
   }
 
-  // The header names the model and agent this session was started with: it
-  // follows the card's label until the first question, then stays put.
   property string labelSource: ""
   onLabelSourceChanged: if (!chat.started) chat.modelName = chat.labelSource
 
-  // Shared by the composer, which sees keys first, and the view itself.
   function handleKey(event) {
+    // Handle Esc, Ctrl+, and Ctrl+Y, for both the composer and the view.
     if (event.key === Qt.Key_Escape) {
       chat.closeRequested()
       event.accepted = true
@@ -292,8 +273,6 @@ Item {
           font.family: chat.fontFamily
           font.pixelSize: Style.font.title
           onLinkActivated: function(link) {
-            // The card is a fullscreen overlay, so a browser would open
-            // underneath it. Following a source is moving on: close the chat.
             Qt.openUrlExternally(link)
             chat.closeRequested()
           }
@@ -330,7 +309,6 @@ Item {
     }
   }
 
-  // Scroll scrims, matching the menu's list.
   Rectangle {
     anchors.left: conversation.left
     anchors.right: conversation.right
@@ -359,8 +337,6 @@ Item {
     }
   }
 
-  // The composer is a multi-line input, which the kit's single-line TextField
-  // can't be, so it takes the same fill and border states instead.
   BorderSurface {
     id: composer
     readonly property bool hot: composerHover.hovered
@@ -432,8 +408,6 @@ Item {
     }
   }
 
-  // Chat-only: the menu needs no key hints, a conversation does. Detail-line
-  // styling, so it sits with the rest of the card.
   Text {
     id: hints
     anchors.left: parent.left
@@ -449,9 +423,6 @@ Item {
     font.pixelSize: Style.font.caption
   }
 
-  // Take focus only when shown: a chat loaded under an open settings view
-  // (opened from the menu's Settings row) must not steal its keys. The host
-  // hands focus back with focusInput() when settings close.
   Component.onCompleted: {
     chat.modelName = chat.labelSource
     if (chat.visible) input.forceActiveFocus()

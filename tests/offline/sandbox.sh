@@ -1,8 +1,3 @@
-# Every session runs inside bin/omarchat-session's bubblewrap sandbox. A
-# stand-in backend reports what it could do from in there: see files in the
-# real $HOME, change it, write the paths it declared, and whether /tmp is
-# shared with the host. Nothing reaches a real agent.
-
 # shellcheck source=SCRIPTDIR/../lib.sh
 source "$(dirname "$0")/../lib.sh"
 
@@ -17,15 +12,12 @@ if ! bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid true 2>/dev/null;
   exit
 fi
 
-# Work outside /tmp: the sandbox gives sessions a private one, so a plugin
-# under /tmp would be invisible inside it (installed plugins live in ~/.config).
 rm -rf "$scratch"
 scratch=$(mktemp -d -p "$HOME" .omarchat-test.XXXXXX)
 plugin=$(plugin_copy)
 declared="$scratch/declared"
 mkdir -p "$declared"
 probe="omarchat-sandbox-probe.$$"
-# A file in the real $HOME that no session should be able to see.
 secret="$HOME/.omarchat-sandbox-secret.$$"
 echo "SECRET-$RANDOM" >"$secret"
 
@@ -50,7 +42,6 @@ chmod +x "$plugin/backends/claude"
 
 export OMARCHAT_MODEL_FILE="$scratch/model"
 export XDG_CACHE_HOME="$scratch/cache"
-# The stand-in isn't a real agent binary; skip resolving one.
 export OMARCHAT_AGENT_BIN=/bin/true
 "$plugin/bin/omarchat-model" set claude stub Stub
 
@@ -69,7 +60,6 @@ else
 fi
 rm -f "$HOME/$probe" "/tmp/$probe" "$secret"
 
-# Failures before the sandbox say what's wrong, on stderr, for the card.
 "$plugin/bin/omarchat-model" set ghost g/1 Ghost
 cat >"$plugin/backends/claude" <<'EOF'
 #!/bin/bash

@@ -1,13 +1,3 @@
-/**
- * Omarchat web search for Pi.
- *
- * The only tool an Omarchat Pi session gets. It searches through Exa's hosted
- * MCP endpoint (the service opencode's websearch uses), which works without an
- * API key; set EXA_API_KEY for higher limits. The model chooses the query and
- * nothing else: there is no URL parameter, so it can't reach this machine or
- * the local network, only the fixed search endpoint.
- */
-
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
@@ -16,12 +6,10 @@ const RESULTS = 6;
 const MAX_CHARS = 12000;
 const RETRY_DELAY_MS = 3000;
 
-// The keyless tier rate-limits in short bursts and says so in a normal
-// result. Treat that as a failure, so the model doesn't read it as findings.
-// Match Exa's own wording: results about other rate limits must pass.
 const RATE_LIMITED = /hit Exa's free MCP rate limit/i;
 
 async function search(query: string, signal?: AbortSignal): Promise<string> {
+	// Search Exa and return the results' text; throws on an HTTP or JSON-RPC error.
 	const key = process.env.EXA_API_KEY;
 	const url = key ? `${ENDPOINT}?exaApiKey=${encodeURIComponent(key)}` : ENDPOINT;
 
@@ -44,8 +32,6 @@ async function search(query: string, signal?: AbortSignal): Promise<string> {
 	});
 	if (!response.ok) throw new Error(`Web search failed (HTTP ${response.status})`);
 
-	// The endpoint answers as server-sent events; the JSON-RPC reply is the
-	// last `data:` line. Fall back to the raw body for plain JSON.
 	const body = await response.text();
 	const data = body
 		.split("\n")

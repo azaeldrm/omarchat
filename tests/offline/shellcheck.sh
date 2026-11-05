@@ -1,11 +1,6 @@
-# Every shell script passes shellcheck.
-
 # shellcheck source=SCRIPTDIR/../lib.sh
 source "$(dirname "$0")/../lib.sh"
 
-# Probe rather than `command -v`: a mise shim can exist without a version.
-# CI always has it; locally, install it with `mise use -g shellcheck` or
-# `omarchy pkg add shellcheck`.
 if shellcheck --version >/dev/null 2>&1; then
   shellcheck=(shellcheck)
 elif [[ -n ${OMARCHAT_TEST_SHELLCHECK:-} ]]; then

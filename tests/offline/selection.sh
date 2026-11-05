@@ -1,7 +1,3 @@
-# Choosing a model: the fallback through usable agents, the "no agent" state,
-# the header label, saving a choice, the model list's reasons, and the marks
-# on refused models. Uses stand-in backends, so nothing touches a real agent.
-
 # shellcheck source=SCRIPTDIR/../lib.sh
 source "$(dirname "$0")/../lib.sh"
 
@@ -9,8 +5,6 @@ plugin=$(plugin_copy)
 for agent in claude pi codex opencode; do
   cat >"$plugin/backends/$agent" <<'EOF'
 #!/bin/bash
-# Stand-in backend driven by STUB_<AGENT>_CHECK (empty: usable; "silent": fails
-# without a reason; anything else: the reason) and STUB_<AGENT>_MODELS (lines).
 agent=$(basename "$0")
 check="STUB_${agent^^}_CHECK"
 models="STUB_${agent^^}_MODELS"
@@ -38,15 +32,14 @@ model="$plugin/bin/omarchat-model"
 models="$plugin/bin/omarchat-models"
 tab=$'\t'
 
-# Codex and opencode are unusable unless a test says otherwise.
 reset() {
+  # Codex and opencode are unusable unless a test says otherwise.
   rm -f "$OMARCHAT_MODEL_FILE"
   rm -rf "$XDG_CACHE_HOME"
   unset STUB_CLAUDE_CHECK STUB_PI_CHECK
   export STUB_CODEX_CHECK="Not installed" STUB_OPENCODE_CHECK="Not installed"
 }
 
-# Fallback when nothing has been chosen.
 reset
 assert_eq "nothing chosen: the first usable agent's default" "claude${tab}c1${tab}Claude One" "$("$model")"
 assert_eq "header label names model and agent" "Claude One · Claude Code" "$("$model" --label)"
@@ -64,7 +57,6 @@ assert_eq "no usable agent: reports none" "none${tab}${tab}" "$("$model")"
 assert_eq "no usable agent: the label says so" "No agent set up" "$("$model" --label)"
 reset
 
-# A saved choice wins while its agent is usable.
 "$model" set pi p/1 "Pi One"
 assert_eq "set saves agent, model, and name" "pi${tab}p/1${tab}Pi One" "$(cat "$OMARCHAT_MODEL_FILE")"
 assert_eq "a usable saved choice is used" "pi${tab}p/1${tab}Pi One" "$("$model")"
@@ -85,7 +77,6 @@ assert_eq "no usable agent: the saved label is cleared" "" "$(cat "$label_file")
 "$model" set codex gpt-6.1-sol "GPT-6.1-Sol"
 assert_eq "a saved large model falls back" "claude${tab}c1${tab}Claude One" "$("$model")"
 
-# Large models are left out by name, not by look-alike words.
 # shellcheck source=SCRIPTDIR/../../backends/lib.sh
 source "$plugin/backends/lib.sh"
 assert_eq "large models are dropped, others kept" '["claude-haiku-5-5","gpt-6.1-terra","openai/gpt-6-luna","solar-mini","x/console"]' \
@@ -93,7 +84,6 @@ assert_eq "large models are dropped, others kept" '["claude-haiku-5-5","gpt-6.1-
       openai/gpt-6-luna solar-mini x/console | jq -Rc '{id: ., name: .}' | omarchat_drop_large | jq -sc 'map(.id)')"
 reset
 
-# The model list for settings.
 listing=$(STUB_CLAUDE_CHECK="Not logged in" "$models")
 assert_eq "an unusable agent is listed with its reason and no models" '{"available":false,"reason":"Not logged in","models":0}' \
   "$(jq -c '.agents[] | select(.id == "claude") | {available, reason, models: (.models | length)}' <<<"$listing")"
@@ -106,7 +96,6 @@ assert_eq "a usable agent with no models says so" '{"available":false,"reason":"
 assert_eq "an agent that fails without a reason is unavailable, not empty" '{"available":false,"reason":"Unavailable"}' \
   "$(STUB_CLAUDE_CHECK=silent "$models" | jq -c '.agents[] | select(.id == "claude") | {available, reason}')"
 
-# Refused models are marked for a week.
 reset
 "$models" >/dev/null
 "$model" set claude c2 "Claude Two"

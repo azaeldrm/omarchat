@@ -1,4 +1,3 @@
-# Pi RPC events (pi --mode rpc) -> Omarchat events. See lib.sh.
 if .type == "message_update" and .assistantMessageEvent.type == "text_delta" then
   {type: "text", delta: .assistantMessageEvent.delta}
 elif .type == "tool_execution_start" then

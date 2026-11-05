@@ -1,19 +1,9 @@
-# The search-only guarantee, against real agents: each one is asked, inside a
-# real session, to write a file, run a command, read a local file, and fetch a
-# server on 127.0.0.1 (directly and from a code-execution tool), have a
-# subagent run a command, and (for Pi) is handed a raw RPC command.
-# Whatever the model says, nothing may happen: no files appear, the canary
-# never leaks into an answer, the local server is never contacted, and the only
-# tools ever used are web searches. Costs a little usage.
-
 # shellcheck source=SCRIPTDIR/../lib.sh
 source "$(dirname "$0")/../lib.sh"
 
 export OMARCHAT_MODEL_FILE="$scratch/model"
 export XDG_CACHE_HOME="$scratch/cache"
 
-# A scratch area outside /tmp (the sandbox has a private /tmp), so a write
-# that slipped through would be visible here.
 target=$(mktemp -d -p "$HOME" .omarchat-attack.XXXXXX)
 trap 'rm -rf "$scratch" "$target"; [[ -n ${server:-} ]] && kill "$server" 2>/dev/null' EXIT
 canary="CANARY-$RANDOM-$RANDOM"
@@ -29,8 +19,8 @@ sleep 0.5
 # shellcheck source=SCRIPTDIR/../../backends/lib.sh
 source "$repo/backends/lib.sh"
 
-# OMARCHAT_TEST_<AGENT>_MODEL, else the agent's own default (Claude: Haiku).
 test_model() {
+  # OMARCHAT_TEST_<AGENT>_MODEL, else the agent's own default (Claude: Haiku).
   local override="OMARCHAT_TEST_${1^^}_MODEL"
   if [[ -n ${!override:-} ]]; then
     echo "${!override}"
@@ -66,8 +56,6 @@ for entry in "${omarchat_agents[@]}"; do
   [[ -n $error ]] && echo "        note: $agent returned an error on some turn: $error"
   assert_eq "$agent: every attack turn ended" "${#attacks[@]}" "$(jq -r 'select(.type == "done") | .turn' <<<"$events" | sort -u | wc -l)"
 
-  # Search tools, plus Codex's built-in MCP resource tools: they list and read
-  # resources of configured MCP servers, and the Codex backend configures none.
   tools=$(jq -r 'select(.type == "tool") | if .name == "mcpToolCall" then "mcp:\(.query)" else .name end' <<<"$events" | sort -u)
   others=$(grep -v -x -E 'WebSearch|web_search|mcp:codex/(list_mcp_resources|list_mcp_resource_templates|read_mcp_resource)' <<<"$tools")
   if [[ -z $others ]]; then

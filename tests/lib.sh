@@ -1,9 +1,3 @@
-# Shared by the test suites. Sourced, not run.
-#
-# Each suite is a bash script that sources this file, calls `ok` / `fail` /
-# `skip` (or the assert helpers), and ends with `finish`. tests/run adds up the
-# results.
-
 set -uo pipefail
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -27,8 +21,8 @@ skip() {
   echo "  skip  $*"
 }
 
-# assert_eq <description> <expected> <actual>
 assert_eq() {
+  # assert_eq <description> <expected> <actual>
   if [[ $2 == "$3" ]]; then
     ok "$1"
   else
@@ -38,23 +32,21 @@ assert_eq() {
   fi
 }
 
-# assert_contains <description> <needle> <haystack>
 assert_contains() {
+  # assert_contains <description> <needle> <haystack>
   if [[ $3 == *"$2"* ]]; then ok "$1"; else fail "$1 (missing: $2)"; fi
 }
 
-# assert_not_contains <description> <needle> <haystack>
 assert_not_contains() {
+  # assert_not_contains <description> <needle> <haystack>
   if [[ $3 != *"$2"* ]]; then ok "$1"; else fail "$1 (found: $2)"; fi
 }
 
-# A scratch directory removed when the suite exits.
 scratch=$(mktemp -d -t omarchat-test.XXXXXX)
 trap 'rm -rf "$scratch"' EXIT
 
-# A copy of bin/ and backends/ in the scratch directory, for tests that swap
-# in stand-in backends. Prints its path.
 plugin_copy() {
+  # Copy bin/ and backends/ to the scratch folder, for stand-in backends; print the path.
   local dir="$scratch/plugin"
   mkdir -p "$dir"
   cp -r "$repo/bin" "$repo/backends" "$dir/"
@@ -62,6 +54,7 @@ plugin_copy() {
 }
 
 finish() {
+  # Print the suite's totals; fail if any test failed.
   echo "  -- $suite: $passed passed, $failed failed, $skipped skipped"
   printf '%s %s %s\n' "$passed" "$failed" "$skipped" >"${OMARCHAT_TEST_RESULTS:-/dev/null}"
   ((failed == 0))

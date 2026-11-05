@@ -1,13 +1,5 @@
 #!/bin/bash
 
-# Omarchat backend for Pi. See lib.sh for the interface.
-#
-# One pi process in RPC mode holds the whole conversation. Pi has no web
-# search of its own, so the session loads Omarchat's (pi-web-search.ts) and
-# allows that tool alone. Extensions stay on: providers such as llama.cpp
-# come from Pi's built-in extensions; the tool allowlist keeps any tools they
-# add switched off.
-
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
@@ -20,8 +12,6 @@ check)
     echo "Not installed"
     exit 1
   fi
-  # Pi needs at least one provider: a /login, a custom models.json (local
-  # servers), or a provider key in the environment.
   if ! jq -e 'length > 0' "$HOME/.pi/agent/auth.json" >/dev/null 2>&1 &&
     [[ ! -s $HOME/.pi/agent/models.json ]] &&
     ! env | grep -q -E '^[A-Z0-9_]+_API_KEY='; then
@@ -32,14 +22,10 @@ check)
 
 models)
   bin=$(omarchat_agent_bin pi)
-  # Ask over RPC: unlike --list-models it includes display names. Keep stdin
-  # open until the answer arrives; closing it shuts pi down first.
   coproc PI { cd /tmp && exec "$bin" --mode rpc --no-session --no-tools --no-mcp --no-skills --no-prompt-templates 2>/dev/null; }
   printf '%s\n' '{"id":"models","type":"get_available_models"}' >&"${PI[1]}"
   while IFS= read -r -t 30 line <&"${PI[0]}"; do
     if jq -e '.type == "response" and .id == "models"' <<<"$line" >/dev/null 2>&1; then
-      # Show the name a provider gives a model; local servers often only
-      # report an id, so fall back to it.
       jq -c '.data.models[]? | {
         id: "\(.provider)/\(.id)",
         name: (if (.name // "") != "" then .name else .id end),
@@ -52,8 +38,6 @@ models)
   ;;
 
 default)
-  # The model Pi itself defaults to, when it's still offered; otherwise the
-  # first one it lists.
   models=$("$0" models)
   wanted=$(jq -r '[.defaultProvider, .defaultModel] | select(all(. != null)) | join("/")' \
     "$HOME/.pi/agent/settings.json" 2>/dev/null || true)
@@ -67,8 +51,6 @@ paths)
   ;;
 
 encode)
-  # A typed message, {"text": ...}, as a Pi RPC prompt. Only ever a prompt:
-  # whatever the text says, it can't become another RPC command (bash, ...).
   jq --unbuffered -c '{type: "prompt", message: .text}'
   ;;
 

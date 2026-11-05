@@ -1,26 +1,5 @@
 #!/bin/bash
 
-# omarchat-session
-#
-# One ephemeral Omarchat conversation with the selected agent and model
-# (omarchat-model). The chat card writes {"text": ...} lines to stdin and reads
-# Omarchat events from stdout (see backends/lib.sh). The process lives exactly
-# as long as the card, so closing the card is the end of the conversation.
-#
-# Whatever the agent, the session can search the web and nothing else:
-#
-# - Each backend allows a search tool and no other tool. Claude Code's
-#   WebSearch runs on Anthropic's servers and Codex's on OpenAI's; Pi gets
-#   Omarchat's web_search and opencode keeps its websearch, which only send a
-#   query to a fixed search service. None takes a URL, so the model can't
-#   reach this machine or the local network.
-# - The agent runs in a bubblewrap sandbox: the filesystem is read-only, /tmp
-#   is private, and $HOME is an empty tmpfs. Only Omarchat itself and the
-#   agent's own program come back (read-only), plus the agent's state
-#   (`<backend> paths`, writable, for token refreshes). Documents, keys, and
-#   other configs aren't there to read, whatever tools an agent turns out to
-#   have. It dies with the card that started it.
-
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
@@ -31,8 +10,6 @@ source "$backends/lib.sh"
 IFS=$'\t' read -r agent model _ < <("$here/omarchat-model")
 backend="$backends/$agent"
 
-# Fail with something readable: the chat card shows stderr when the session
-# exits before answering.
 if [[ $agent == "none" ]]; then
   echo "No agent has been set up yet." >&2
   exit 1
@@ -50,8 +27,6 @@ if ! command -v bwrap >/dev/null; then
   exit 1
 fi
 
-# The real path: links like mise's installs/<agent>/latest point into a part
-# of $HOME the sandbox hides.
 OMARCHAT_AGENT_BIN=$(readlink -f "$(omarchat_agent_bin "$agent")")
 export OMARCHAT_AGENT_BIN
 
@@ -66,8 +41,6 @@ not sure of. Prefer one search; only dig further when it falls short.
 - When you used the web, end with the sources as short Markdown links."
 export OMARCHAT_SYSTEM_PROMPT
 
-# Put back what a session needs from under $HOME: this plugin (backends,
-# translations, the Pi search tool) and the agent's own program, read-only.
 plugin_root=$(dirname "$here")
 agent_root=$(dirname "$OMARCHAT_AGENT_BIN")
 readable=(--ro-bind "$plugin_root" "$plugin_root" --ro-bind "$agent_root" "$agent_root")

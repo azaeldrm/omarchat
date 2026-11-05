@@ -1,22 +1,5 @@
 #!/bin/bash
 
-# omarchat-models [--cached | --if-older <seconds>]
-#
-# Every agent Omarchat supports, whether it can be used here, and the models
-# it offers, as one JSON document for the settings view:
-#
-#   {"agents": [{"id": "pi", "name": "Pi", "available": true, "reason": "",
-#                "models": [{"id": "anthropic/claude-haiku-5-5",
-#                            "name": "Claude Haiku 5.5", "provider": "anthropic"}]}]}
-#
-# The result is cached in ~/.cache/omarchat/models.json; --cached prints the
-# cache when there is one, so the view can open instantly and refresh after.
-# --if-older rebuilds the cache only when it's older than that (printing
-# nothing otherwise): listing every agent's models starts several of them,
-# which shouldn't slow down every chat.
-# Models a chat found refused (omarchat-model unavailable) carry an
-# "unavailable" reason for a week, in case the plan changes.
-
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
@@ -27,6 +10,7 @@ cache="${XDG_CACHE_HOME:-$HOME/.cache}/omarchat/models.json"
 unavailable="${XDG_CACHE_HOME:-$HOME/.cache}/omarchat/unavailable.json"
 
 print_with_unavailable() {
+  # Print the cache, marking models refused in the past week.
   local marks="{}"
   [[ -s $unavailable ]] && marks=$(cat "$unavailable")
   jq --argjson marks "$marks" '.agents |= map(.id as $agent | .models |= map(
