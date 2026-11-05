@@ -5,45 +5,25 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// Omarchat as a standalone overlay: a menu-styled card holding one ephemeral
-// chat. Not keepLoaded on purpose — hiding the plugin destroys this instance,
-// and with it the ChatView's session process, so every summon starts fresh.
-//
-//   omarchy-shell shell toggle azaeldrm.omarchat '{}'
-//   omarchy-shell shell summon azaeldrm.omarchat '{"prompt":"What is Hyprland?"}'
-//   omarchy-shell shell summon azaeldrm.omarchat '{"settings":true}'
 Item {
   id: root
 
-  // Injected by omarchy-shell when this plugin is summoned.
   property string omarchyPath: Quickshell.env("OMARCHY_PATH")
   property var shell: null
   property var manifest: null
 
-  // Plugins install with no hooks, so the session scripts run straight from
-  // this plugin's folder rather than from anything put on PATH.
   readonly property string pluginDir: decodeURIComponent(Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")).replace(/\/$/, "")
 
   property bool opened: false
   property string prompt: ""
-  // Settings replace the conversation in the card without ending it; the chat
-  // stays loaded underneath. Picking a model before the first question
-  // restarts the warm session on it (chatAlive cycles the chat's Loader).
   property bool settingsOpen: false
   property bool chatAlive: true
   property string currentAgent: ""
   property string currentModel: ""
-  // Resolved on open, before a session starts: with no usable agent the card
-  // shows SetupView instead of a chat that could only fail.
   property bool agentKnown: false
   property bool needsSetup: false
-  // "<model> · <agent>" for the header. Opening starts from the label the
-  // last check saved, so the card's first frame is complete; the check then
-  // corrects it in the rare case something changed.
   property string modelLabel: ""
 
-  // Shares the [menu] surface tokens, so themes that style the menu style
-  // this card too and the two read as one surface.
   property color background: Color.menu.background
   property color foreground: Color.menu.text
   property color border: Color.menu.border
@@ -70,6 +50,7 @@ Item {
     : root.needsSetup ? root.setupCardHeight : root.compactCardHeight
 
   function open(payloadJson) {
+    // Open the card, with the saved label, an optional prompt, or settings.
     var payload = ({})
     try { payload = JSON.parse(payloadJson || "{}") } catch (e) { payload = ({}) }
     root.prompt = String(payload.prompt || "").trim()
@@ -77,19 +58,15 @@ Item {
     try { saved = String(labelFile.text() || "").trim() } catch (e) { saved = "" }
     root.modelLabel = saved
     root.needsSetup = false
-    // A saved label means an agent worked last time: show the chat at once.
     root.agentKnown = saved !== ""
     root.opened = true
     agentProbe.running = true
     if (payload.settings) root.openSettings()
-    // Keep the model cache current even for people who never open settings,
-    // so a newly installed or logged-in agent shows up on its own. Hourly at
-    // most: listing models starts the agents, competing with the chat.
     if (!modelsRefresh.running) modelsRefresh.running = true
   }
 
   function openSettings() {
-    // Read the selection first so the picker opens with the current model checked.
+    // Read the current selection, then show the model picker.
     selectionRead.running = true
   }
 
@@ -99,6 +76,7 @@ Item {
   }
 
   function restartChat() {
+    // Start a new chat by recreating the chat view.
     root.chatAlive = false
     Qt.callLater(function() { root.chatAlive = true })
   }
@@ -111,7 +89,6 @@ Item {
     printErrors: false
   }
 
-  // The selection line ("none" when no agent is usable), then the label.
   Process {
     id: agentProbe
     command: ["bash", root.pluginDir + "/bin/omarchat-model", "--probe"]
@@ -159,10 +136,12 @@ Item {
   }
 
   function close() {
+    // Hide the card without telling the shell.
     root.opened = false
   }
 
   function dismiss() {
+    // Hide the card and tell the shell, which unloads the plugin and the chat.
     root.opened = false
     if (root.shell && typeof root.shell.hide === "function")
       root.shell.hide((root.manifest && root.manifest.id) || "azaeldrm.omarchat")
@@ -173,8 +152,6 @@ Item {
     visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
-    // Omarchy's layer rule for keyboard-driven panels turns off Hyprland's
-    // layer fade for this namespace, so the card pops in like the menu.
     WlrLayershell.namespace: "omarchy-keyboard-panel"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
@@ -196,8 +173,6 @@ Item {
       height: root.cardHeight
       radius: root.cornerRadius
       anchors.horizontalCenter: parent.horizontalCenter
-      // Pin the top where the full card will sit, so the compact card grows
-      // downward into the conversation instead of re-centering.
       y: Math.max(Style.gapsOut, Math.round((panel.height - root.fullCardHeight) / 2))
       color: root.background
       borderSpec: root.borderSpec
@@ -222,7 +197,6 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            // In settings the header is the model search, like the menu's.
             text: root.settingsOpen
               ? (settingsLoader.item ? settingsLoader.item.headerText : "Choose a model…")
               : "󰚩  " + (root.needsSetup ? "Set up an agent…" : (chatLoader.item ? chatLoader.item.title : "Omarchat"))

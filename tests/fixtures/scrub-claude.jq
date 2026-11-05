@@ -1,6 +1,3 @@
-# Scrubs a recorded `claude -p --output-format stream-json` session before it
-# becomes a fixture: no ids, paths, account or rate-limit details, and no
-# search-result text (third-party pages). The translation never reads them.
 select(.type != "rate_limit_event")
 | if .type == "system" then
     if .subtype == "init" then {type, subtype, model, tools} else {type, subtype} end

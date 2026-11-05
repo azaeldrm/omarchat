@@ -1,50 +1,24 @@
-# Shared by the Omarchat backends. Sourced, not run.
-#
-# A backend is an executable in this folder, named after the agent, with:
-#
-#   <agent> check            exit 0 if usable; otherwise print a short reason
-#                            ("Not installed", "Not logged in") and exit 1
-#   <agent> models           one JSON object per line: {"id": ..., "name": ...}
-#   <agent> default          the model to use until one is chosen, as {"id", "name"}
-#   <agent> paths            paths the session may write (token refreshes, ...)
-#   <agent> encode           typed messages ({"text": ...} lines) -> agent input
-#   <agent> translate        agent output -> Omarchat events (<agent>.jq)
-#   <agent> session <model>  run a chat: encode | agent | translate
-#
-# Session input is one JSON object per line, {"text": "..."}. Session output is
-# one JSON object per line:
-#
-#   {"type":"text","delta":"..."}           streamed answer text
-#   {"type":"tool","name":"...","query":""} the model is using a tool
-#   {"type":"answer","text":"..."}          authoritative final text for the turn
-#   {"type":"error","text":"..."}           the turn failed
-#   {"type":"done"}                         the turn is over
-
-# Agents with a backend here, as id:name, in the order settings lists them and
-# the order Omarchat falls back through when nothing usable is chosen.
 omarchat_agents=("claude:Claude Code" "pi:Pi" "codex:Codex" "opencode:OpenCode")
 
-# Omarchat's version, from manifest.json: what agents are told the client is.
 omarchat_version() {
+  # Omarchat's version, from manifest.json.
   jq -r '.version' "$(dirname "${BASH_SOURCE[0]}")/../manifest.json"
 }
 
-# Omarchat is for quick questions, so it leaves out each provider's largest
-# models (Claude Opus and Fable, OpenAI's Sol and Astra) wherever an agent
-# offers them. None of the agents reports a model's size, so this goes by name.
 omarchat_large_model='(^|[^a-z])(opus|fable|sol|astra)([^a-z]|$)'
 
-# Model lines ({"id", "name", ...}) on stdin, minus the large ones.
 omarchat_drop_large() {
+  # Model lines ({"id", "name", ...}) on stdin, minus the large ones.
   jq -c --arg re "$omarchat_large_model" 'select([.id, .name] | map(. // "" | test($re; "i")) | any | not)'
 }
 
-# True if a model id or name is one of the large ones.
 omarchat_is_large() {
+  # True if a model id or name is one of the large ones.
   grep -qiE "$omarchat_large_model" <<<"$1"
 }
 
 omarchat_agent_name() {
+  # An agent id's display name.
   local entry
   for entry in "${omarchat_agents[@]}"; do
     [[ ${entry%%:*} == "$1" ]] && { echo "${entry#*:}"; return; }
@@ -52,18 +26,14 @@ omarchat_agent_name() {
   echo "$1"
 }
 
-# Print the real binary for an agent, skipping Omarchy's install-on-first-run
-# stubs (and mise shims, which would want to write their cache in the sandbox).
-# omarchat-session resolves it before entering the sandbox, where mise can't
-# write, and passes it down as OMARCHAT_AGENT_BIN.
 omarchat_agent_bin() {
+  # Print an agent's real binary, skipping Omarchy's install-on-first-run stubs.
   local name="$1" bin
   if [[ -n ${OMARCHAT_AGENT_BIN:-} ]]; then
     echo "$OMARCHAT_AGENT_BIN"
     return
   fi
   bin=$(mise which "$name" 2>/dev/null) || bin=$(command -v "$name" 2>/dev/null) || return 1
-  # The stubs are short scripts; agents are large binaries, so read just the start.
   head -c 4096 "$bin" 2>/dev/null | grep -qa '^mise use -g' && return 1
   echo "$bin"
 }

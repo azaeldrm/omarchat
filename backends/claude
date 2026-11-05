@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Omarchat backend for Claude Code. See lib.sh for the interface.
-#
-# One claude process holds the whole conversation (stream-json on stdin and
-# stdout). WebSearch is its only tool and runs on Anthropic's servers.
-
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
@@ -24,7 +19,6 @@ check)
   ;;
 
 models)
-  # Claude Code accepts these ids but has no command that lists them.
   printf '%s\n' \
     '{"id":"claude-haiku-5-5","name":"Claude Haiku 5.5"}' \
     '{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"}'
@@ -39,7 +33,6 @@ paths)
   ;;
 
 encode)
-  # A typed message, {"text": ...}, as Claude Code's stream-json input.
   jq --unbuffered -c '{type: "user", message: {role: "user", content: .text}}'
   ;;
 

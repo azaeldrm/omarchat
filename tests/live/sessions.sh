@@ -1,11 +1,3 @@
-# Real chats, no stand-ins: each agent that's installed and logged in here
-# answers through bin/omarchat-session (so inside the sandbox), keeps context
-# across turns, and every turn ends cleanly. Checks Omarchat's plumbing, not
-# the model's wording. Costs a little usage.
-#
-# Models: OMARCHAT_TEST_<AGENT>_MODEL (e.g. OMARCHAT_TEST_PI_MODEL), else
-# Claude Haiku 5.5 for Claude Code and each other agent's own default.
-
 # shellcheck source=SCRIPTDIR/../lib.sh
 source "$(dirname "$0")/../lib.sh"
 
@@ -15,8 +7,8 @@ export XDG_CACHE_HOME="$scratch/cache"
 # shellcheck source=SCRIPTDIR/../../backends/lib.sh
 source "$repo/backends/lib.sh"
 
-# OMARCHAT_TEST_<AGENT>_MODEL, else the agent's own default (Claude: Haiku).
 test_model() {
+  # OMARCHAT_TEST_<AGENT>_MODEL, else the agent's own default (Claude: Haiku).
   local override="OMARCHAT_TEST_${1^^}_MODEL"
   if [[ -n ${!override:-} ]]; then
     echo "${!override}"
@@ -36,8 +28,6 @@ for entry in "${omarchat_agents[@]}"; do
   model=$(test_model "$agent")
   "$repo/bin/omarchat-model" set "$agent" "$model" "$model"
 
-  # A word the model can't guess, so remembering it proves the session kept
-  # the first turn: the same agent process carries the whole conversation.
   word="omarchat$RANDOM$RANDOM"
   events=$(timeout 200 python3 -I "$repo/tests/live/converse.py" 90 "$repo/bin/omarchat-session" -- \
     "Remember this word: $word. Reply with just: ok" \

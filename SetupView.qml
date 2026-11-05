@@ -4,10 +4,6 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// Shown instead of a chat when no supported agent can be used yet. Lists the
-// agents Omarchat works with and why each isn't ready; choosing one hands off
-// to Omarchy's own setup (omarchy-default-agent), which installs the agent if
-// needed, makes it the default, and opens it so the user can sign in.
 Item {
   id: setup
 
@@ -25,24 +21,23 @@ Item {
   property var agents: []
   property int selectedIndex: 0
 
-  // Same row anatomy as the Omarchy menu's: label over a detail line.
   readonly property int rowHeight: Math.max(Style.space(58), Style.font.body + Style.font.caption + Style.spacing.rowPaddingX * 2)
   readonly property real rowReservedBorderLeft: Border.left(setup.selectedBorderSpec)
-  // Hosts size the card from this, so it fits the message and the agent rows.
   readonly property int preferredHeight: intro.height + Style.spacing.md
     + Math.max(1, setup.agents.length) * (setup.rowHeight + Style.spacing.xs)
 
-  // Only real pointer movement moves the cursor (see ModelPicker.qml).
   PointerMoveGate {
     id: pointerGate
     referenceItem: setup
   }
 
   function selectFromPointer(index, item, mouse) {
+    // Select a row under the pointer, once the pointer has actually moved.
     if (pointerGate.moved(item, mouse)) setup.selectedIndex = index
   }
 
   function load(cached) {
+    // List the agents, from the cache when cached is true.
     listProc.collected = ""
     listProc.cached = cached
     listProc.command = cached ? ["bash", setup.modelsScript, "--cached"] : ["bash", setup.modelsScript]
@@ -50,6 +45,7 @@ Item {
   }
 
   function setUp(index) {
+    // Install the agent in a row with Omarchy, and close the card.
     if (index < 0 || index >= setup.agents.length) return
     Quickshell.execDetached(["omarchy-default-agent", setup.agents[index].id])
     setup.closeRequested()
@@ -64,7 +60,6 @@ Item {
     }
     onExited: {
       try { setup.agents = JSON.parse(listProc.collected).agents || [] } catch (e) { }
-      // The cache is a first paint; the fresh check says what changed.
       if (listProc.cached) setup.load(false)
     }
   }

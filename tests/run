@@ -1,18 +1,5 @@
 #!/bin/bash
 
-# tests/run [--live] [suite...]
-#
-# Runs the offline suites (tests/offline/), which need only bash, jq,
-# bubblewrap, and the shellcheck linter: no network, no logins, no Omarchy.
-# CI runs these.
-#
-# --live also runs tests/live/: real chats with each agent that's installed and
-# logged in here, including the attack tests that prove a session can only
-# search. They cost a little usage and need network. Pick models with
-# OMARCHAT_TEST_CLAUDE_MODEL and OMARCHAT_TEST_PI_MODEL.
-#
-# Name suites to run only those, e.g. `tests/run translate selection`.
-
 set -uo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -52,7 +39,6 @@ for suite in "${suites[@]}"; do
     total_failed=$((total_failed + f))
     total_skipped=$((total_skipped + s))
   fi
-  # A suite that dies before finish() reports nothing; count it as failed.
   if ((status != 0)) && ((f == 0)); then
     broken+=("$name")
     total_failed=$((total_failed + 1))

@@ -1,7 +1,3 @@
-# The plugin installs with `omarchy plugin add`, which refuses anything that
-# fails `omarchy plugin validate`. CI has no Omarchy, so this mirrors the
-# validator's checks; where Omarchy is installed, the real one runs too.
-
 # shellcheck source=SCRIPTDIR/../lib.sh
 source "$(dirname "$0")/../lib.sh"
 
@@ -14,7 +10,6 @@ for field in id name version kinds entryPoints; do
   assert_eq "has required field '$field'" "true" "$(jq --arg f "$field" 'has($f)' "$manifest")"
 done
 
-# Releases are tagged v<version>; the marketplace shows the manifest's.
 version=$(jq -r '.version' "$manifest")
 if [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then ok "version '$version' is X.Y.Z"; else fail "version '$version' is X.Y.Z"; fi
 if [[ ${GITHUB_REF_TYPE:-} == tag ]]; then
@@ -46,8 +41,6 @@ assert_eq "no symlinks in the plugin" "" "$links"
 assert_eq "LICENSE matches the manifest's license" "MIT" \
   "$(grep -q '^MIT License' "$repo/LICENSE" && jq -r .license "$manifest")"
 
-# Plugins install as plain git checkouts, so the scripts must be executable
-# in git itself, not just on this disk.
 for script in bin/omarchat-model bin/omarchat-models bin/omarchat-session backends/claude backends/pi backends/codex backends/opencode tests/run; do
   mode=$(git -C "$repo" ls-files -s "$script" | cut -d' ' -f1)
   if [[ -z $mode ]]; then

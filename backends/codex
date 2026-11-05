@@ -1,18 +1,5 @@
 #!/bin/bash
 
-# Omarchat backend for Codex. See lib.sh for the interface.
-#
-# Speaks Codex's app-server protocol (JSON-RPC over stdio), OpenAI's
-# documented way to embed Codex in a client: https://developers.openai.com/codex/app-server
-# One app-server holds the conversation as an ephemeral, read-only thread.
-#
-# Codex is built around tools, so the session switches off everything but web
-# search: the shell, command execution, apps, browsers, computer use, plugins,
-# skills, MCP servers, hooks, subagents, and image generation. It keeps
-# view_image and apply_patch, which no setting removes in this version:
-# apply_patch can't write (read-only thread, read-only sandbox), and view_image
-# can't see anything personal because omarchat-session hides $HOME.
-
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
@@ -27,6 +14,7 @@ disabled_features=(
 )
 
 app_server() {
+  # Run Codex's app-server with every tool but web search switched off.
   local bin args=() feature
   bin=$(omarchat_agent_bin codex)
   for feature in "${disabled_features[@]}"; do args+=(--disable "$feature"); done
@@ -37,9 +25,8 @@ app_server() {
     -c 'web_search="live"'
 }
 
-# Start an app-server on fifos: fd 3 writes to it, fd 4 reads from it, and
-# server_pid is set. The caller's EXIT trap cleans up.
 start_server() {
+  # Start an app-server on fifos: fd 3 writes, fd 4 reads; sets server_pid.
   workdir=$(mktemp -d)
   mkfifo "$workdir/in" "$workdir/out"
   (cd /tmp && app_server) <"$workdir/in" >"$workdir/out" &
@@ -51,22 +38,21 @@ start_server() {
   echo '{"method":"initialized","params":{}}' >&3
 }
 
-# The models this account can use, from the server rather than a fixed list:
-# {"id", "name", "default"} per line.
 list_models() {
+  # The models this account can use, as {"id", "name", "default"} lines.
   start_server 2>/dev/null
   rpc 1 model/list '{"limit":100,"includeHidden":false}' >&3
   await 1 | jq -c '.result.data[]? | select(.hidden | not)
     | {id: .model, name: (.displayName // .model), default: (.isDefault // false)}' | omarchat_drop_large
 }
 
-# rpc <id> <method> <params-json>
 rpc() {
+  # Print a JSON-RPC request: rpc <id> <method> <params-json>.
   jq -nc --argjson id "$1" --arg method "$2" --argjson params "$3" '{id: $id, method: $method, params: $params}'
 }
 
-# Read app-server output until the response to request <id>; print it.
 await() {
+  # Read app-server output until the response to request <id>; print it.
   local line
   while IFS= read -r line <&4; do
     if jq -e --argjson id "$1" '.id == $id and (has("result") or has("error"))' <<<"$line" >/dev/null 2>&1; then
@@ -94,7 +80,6 @@ models)
   ;;
 
 default)
-  # The model Codex marks as its default, or else the first one offered.
   models=$(list_models)
   pick=$(jq -c 'select(.default) | {id, name}' <<<"$models" | head -1)
   [[ -n $pick ]] || pick=$(head -1 <<<"$models" | jq -c '{id, name}')
@@ -106,8 +91,6 @@ paths)
   ;;
 
 encode)
-  # A typed message as turn/start input. The text is only ever a text input;
-  # the backend fills in the request id and thread.
   jq --unbuffered -c '[{type: "text", text: .text}]'
   ;;
 
@@ -136,8 +119,6 @@ session)
     exit 1
   fi
 
-  # Everything the server says from here on: answer its requests (nothing is
-  # ever approved), and translate the rest into Omarchat events.
   {
     while IFS= read -r line; do
       if jq -e 'has("id") and has("method")' <<<"$line" >/dev/null 2>&1; then
@@ -145,8 +126,6 @@ session)
           if .method | test("[Aa]pproval$") then {id, result: {decision: "decline"}}
           else {id, error: {code: -32601, message: "Omarchat does not support this request"}} end' <<<"$line" >&3
       else
-        # OMARCHAT_CODEX_RECORD=<file> keeps the raw stream, for re-recording
-        # tests/fixtures/codex-*.jsonl (scrub with tests/fixtures/scrub-codex.jq).
         [[ -n ${OMARCHAT_CODEX_RECORD:-} ]] && echo "$line" >>"$OMARCHAT_CODEX_RECORD"
         echo "$line"
       fi
@@ -159,7 +138,6 @@ session)
     rpc "$id" turn/start "$(jq -nc --arg thread "$thread" --argjson input "$input" '{threadId: $thread, input: $input}')" >&3
     id=$((id + 1))
   done
-  # The card closed its end: stop the server so the reader drains and ends.
   kill "$server_pid" 2>/dev/null || true
   wait "$reader" 2>/dev/null || true
   ;;

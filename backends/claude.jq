@@ -1,5 +1,3 @@
-# Claude Code stream-json (claude -p --output-format stream-json
-# --include-partial-messages) -> Omarchat events. See lib.sh.
 if .type == "stream_event" and .event.type == "content_block_delta" and .event.delta.type == "text_delta" then
   {type: "text", delta: .event.delta.text}
 elif .type == "assistant" then

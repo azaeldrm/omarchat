@@ -4,14 +4,6 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// Omarchat settings: pick the agent and model the next chat uses.
-//
-// Lists every agent Omarchat supports (bin/omarchat-models), each model by its
-// name, styled and driven like the Omarchy menu: typing filters (the host
-// shows the query as its header), rows carry their agent as the detail line,
-// a hairline divides agents, and the current choice ends in ✓. Agents that
-// can't be used say why, and models a chat found refused are dimmed with the
-// reason. Opens from the cache and refreshes in the background.
 Item {
   id: picker
 
@@ -35,7 +27,6 @@ Item {
   property int selectedIndex: -1
   property string firstSection: ""
 
-  // The host's header shows the query, the way the menu and emojis do.
   readonly property string headerText: picker.filterText || "Choose a model…"
   readonly property bool hasQuery: picker.filterText.length > 0
 
@@ -45,20 +36,19 @@ Item {
 
   ListModel { id: rows }
 
-  // Scrolling moves rows under a pointer that hasn't moved, and plain hover
-  // would then drag the cursor back to whatever row sits under it. Only real
-  // pointer movement selects, as in the Omarchy menu.
   PointerMoveGate {
     id: pointerGate
     referenceItem: picker
   }
 
   function selectFromPointer(index, item, mouse) {
+    // Select a row under the pointer, once the pointer has actually moved.
     if (!pointerGate.moved(item, mouse) || !picker.selectable(index)) return
     picker.selectedIndex = index
   }
 
   function load(cached) {
+    // List the models, from the cache when cached is true.
     listProc.collected = ""
     listProc.command = cached ? ["bash", picker.modelsScript, "--cached"] : ["bash", picker.modelsScript]
     picker.refreshing = !cached
@@ -66,11 +56,13 @@ Item {
   }
 
   function providerName(provider) {
+    // A provider id's display name.
     var names = { anthropic: "Anthropic", openai: "OpenAI", google: "Google", openrouter: "OpenRouter" }
     return names[provider] || String(provider || "")
   }
 
   function matches(model, agentName, terms) {
+    // True if every search term appears in the model's name, id, provider, or agent.
     var haystack = [model.name, model.id, model.provider || "", agentName].join(" ").toLowerCase()
     for (var i = 0; i < terms.length; i++)
       if (terms[i] && haystack.indexOf(terms[i]) < 0) return false
@@ -78,6 +70,7 @@ Item {
   }
 
   function rebuild() {
+    // Rebuild the rows from the agents and filter, keeping the selection.
     var keep = picker.selectedIndex >= 0 && picker.selectedIndex < rows.count
       ? rows.get(picker.selectedIndex).agent + "/" + rows.get(picker.selectedIndex).model : ""
     var terms = picker.filterText.toLowerCase().trim().split(/\s+/)
@@ -97,8 +90,6 @@ Item {
         var model = models[m]
         if (!picker.matches(model, agent.name, terms)) continue
         var current = agent.id === picker.currentAgent && model.id === picker.currentModel
-        // Same model names can come from several agents and providers; the
-        // detail line says whose, like the menu's parent path.
         var whose = model.provider ? agent.name + " · " + picker.providerName(model.provider) : agent.name
         picker.append({
           kind: "model",
@@ -112,8 +103,6 @@ Item {
       }
     }
 
-    // Keep the cursor on the same model across a refresh; otherwise start on
-    // the current choice, or the first one that can be picked.
     var index = -1
     for (var i = 0; i < rows.count && index < 0; i++) {
       var row = rows.get(i)
@@ -127,6 +116,7 @@ Item {
   }
 
   function append(row) {
+    // Add a row, remembering the first agent listed.
     if (!picker.firstSection) picker.firstSection = row.agent
     rows.append({
       kind: row.kind,
@@ -140,18 +130,21 @@ Item {
   }
 
   function selectable(index) {
+    // True if the row is a model that can be chosen.
     if (index < 0 || index >= rows.count) return false
     var row = rows.get(index)
     return row.kind === "model" && !row.unavailable
   }
 
   function nextSelectable(from, step) {
+    // The next choosable row from a row, by step; else that row, or -1.
     for (var i = from + step; i >= 0 && i < rows.count; i += step)
       if (picker.selectable(i)) return i
     return from >= 0 && picker.selectable(from) ? from : -1
   }
 
   function move(step) {
+    // Move the selection by step choosable rows.
     pointerGate.reset()
     var next = picker.nextSelectable(picker.selectedIndex, step)
     if (next >= 0) {
@@ -161,12 +154,14 @@ Item {
   }
 
   function choose(index) {
+    // Pick the model in a row.
     if (!picker.selectable(index)) return
     var row = rows.get(index)
     picker.picked(row.agent, row.model, row.label.replace(/ ✓$/, ""))
   }
 
   function setFilter(text) {
+    // Filter the rows by a search.
     picker.filterText = text
     picker.selectedIndex = -1
     picker.rebuild()
@@ -186,7 +181,6 @@ Item {
         picker.agents = parsed.agents || []
         picker.rebuild()
       } catch (e) { }
-      // The cached list is a first paint; always follow it with a refresh.
       if (!wasRefresh) picker.load(false)
     }
   }
@@ -196,8 +190,6 @@ Item {
     keyCatcher.forceActiveFocus()
   }
 
-  // Keys work like the menu's: type to filter, Backspace / Ctrl+Backspace /
-  // Ctrl+U edit the query, arrows move, Enter picks, Esc clears then leaves.
   Item {
     id: keyCatcher
     anchors.fill: parent
@@ -327,7 +319,6 @@ Item {
     }
   }
 
-  // Scroll scrims, matching the menu's list.
   Rectangle {
     anchors.left: list.left
     anchors.right: list.right
@@ -356,7 +347,6 @@ Item {
     }
   }
 
-  // Empty state, matching the menu's and emojis'.
   Column {
     anchors.centerIn: parent
     spacing: Style.space(8)
